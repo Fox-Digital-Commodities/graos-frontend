@@ -100,6 +100,32 @@ export const processingService = {
     const response = await api.post('/processing/cleanup');
     return response.data;
   },
+
+  // Polling para monitorar status do job
+  pollJobStatus: async (jobId, maxAttempts = 30, interval = 2000) => {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const status = await processingService.getJobStatus(jobId);
+        
+        if (status.status === 'completed' || status.status === 'error') {
+          return status;
+        }
+        
+        // Aguardar antes da próxima tentativa
+        await new Promise(resolve => setTimeout(resolve, interval));
+      } catch (error) {
+        console.error(`Erro no polling (tentativa ${attempt + 1}):`, error);
+        
+        if (attempt === maxAttempts - 1) {
+          throw error;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, interval));
+      }
+    }
+    
+    throw new Error('Timeout: Processamento demorou mais que o esperado');
+  },
 };
 
 // Serviços de Cards
@@ -117,6 +143,12 @@ export const cardsService = {
   },
 
   // Criar novo card
+  create: async (cardData) => {
+    const response = await api.post('/cards', cardData);
+    return response.data;
+  },
+
+  // Criar novo card (método alternativo)
   createCard: async (cardData) => {
     const response = await api.post('/cards', cardData);
     return response.data;
