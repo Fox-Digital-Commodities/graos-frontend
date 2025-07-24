@@ -1,36 +1,48 @@
-import { useCallback, useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Upload, 
+  File, 
+  Image, 
+  FileText, 
+  Trash2, 
+  CheckCircle, 
+  AlertCircle,
+  Loader2
+} from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Upload, FileText, Image, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { uploadService, processingService, apiUtils } from '../services/api';
+import TextInput from './TextInput';
 
-export default function FileUpload({ onUploadComplete }) {
+const FileUpload = ({ onUploadComplete }) => {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({});
-  const [errors, setErrors] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [error, setError] = useState(null);
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
-    // Limpar erros anteriores
-    setErrors([]);
-
-    // Processar arquivos rejeitados
+    setError(null);
+    
     if (rejectedFiles.length > 0) {
-      const newErrors = rejectedFiles.map(rejection => ({
-        file: rejection.file.name,
-        errors: rejection.errors.map(e => e.message)
-      }));
-      setErrors(newErrors);
+      setError('Alguns arquivos foram rejeitados. Verifique o tipo e tamanho dos arquivos.');
+      return;
     }
 
-    // Adicionar arquivos aceitos
     const newFiles = acceptedFiles.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
       status: 'pending',
-      progress: 0
+      progress: 0,
+      uploadedFileId: null,
+      jobId: null
     }));
 
     setFiles(prev => [...prev, ...newFiles]);
@@ -39,7 +51,7 @@ export default function FileUpload({ onUploadComplete }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.png', '.jpg', '.jpeg'],
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif'],
       'text/plain': ['.txt'],
       'application/pdf': ['.pdf']
     },
@@ -55,61 +67,113 @@ export default function FileUpload({ onUploadComplete }) {
     if (files.length === 0) return;
 
     setUploading(true);
+    setError(null);
+    setUploadProgress(0);
 
-    for (const fileItem of files) {
-      if (fileItem.status !== 'pending') continue;
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const fileItem = files[i];
+        
+        if (fileItem.status !== 'pending') continue;
 
-      try {
-        const formData = new FormData();
-        formData.append('file', fileItem.file);
-
-        // Simular progresso de upload
+        // Atualizar status para uploading
         setFiles(prev => prev.map(f => 
           f.id === fileItem.id ? { ...f, status: 'uploading', progress: 0 } : f
         ));
 
-        // Simular progresso
-        for (let progress = 0; progress <= 100; progress += 10) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+        try {
+          // Upload do arquivo
+          const uploadResult = await uploadService.uploadFile(
+            fileItem.file,
+            (progress) => {
+              setFiles(prev => prev.map(f => 
+                f.id === fileItem.id ? { ...f, progress: progress / 2 } : f // 50% para upload
+              ));
+              setUploadProgress(((i * 100) + (progress / 2)) / files.length);
+            }
+          );
+
+          // Arquivo enviado com sucesso
           setFiles(prev => prev.map(f => 
-            f.id === fileItem.id ? { ...f, progress } : f
+            f.id === fileItem.id ? { 
+              ...f, 
+              status: 'processing', 
+              progress: 50,
+              uploadedFileId: uploadResult.fileId 
+            } : f
+          ));
+
+          // Iniciar processamento
+          const jobResponse = await processingService.analyzeFile(uploadResult.fileId);
+          
+          setFiles(prev => prev.map(f => 
+            f.id === fileItem.id ? { ...f, jobId: jobResponse.jobId } : f
+          ));
+
+          // Fazer polling do status do job
+          const finalStatus = await apiUtils.pollJobStatus(
+            jobResponse.jobId,
+            (status) => {
+              const progressValue = 50 + (status.progress || 0) / 2; // 50% + até 50% para processamento
+              setFiles(prev => prev.map(f => 
+                f.id === fileItem.id ? { ...f, progress: progressValue } : f
+              ));
+              setUploadProgress(((i * 100) + progressValue) / files.length);
+            }
+          );
+
+          if (finalStatus.status === 'completed') {
+            // Marcar como concluído
+            setFiles(prev => prev.map(f => 
+              f.id === fileItem.id ? { ...f, status: 'completed', progress: 100 } : f
+            ));
+
+            // Notificar componente pai
+            if (onUploadComplete) {
+              onUploadComplete({
+                id: fileItem.id,
+                name: fileItem.name,
+                type: 'file',
+                status: 'completed',
+                uploadedAt: new Date().toISOString(),
+                extractedData: finalStatus.result
+              });
+            }
+          } else {
+            throw new Error(finalStatus.error || 'Erro no processamento');
+          }
+
+        } catch (fileError) {
+          console.error(`Erro no arquivo ${fileItem.name}:`, fileError);
+          setFiles(prev => prev.map(f => 
+            f.id === fileItem.id ? { 
+              ...f, 
+              status: 'error', 
+              error: fileError.message 
+            } : f
           ));
         }
-
-        // Aqui seria feita a chamada real para a API
-        // const response = await axios.post('/api/upload', formData);
-
-        setFiles(prev => prev.map(f => 
-          f.id === fileItem.id ? { ...f, status: 'completed', progress: 100 } : f
-        ));
-
-        // Notificar componente pai
-        if (onUploadComplete) {
-          onUploadComplete({
-            id: fileItem.id,
-            filename: fileItem.file.name,
-            size: fileItem.file.size
-          });
-        }
-
-      } catch (error) {
-        setFiles(prev => prev.map(f => 
-          f.id === fileItem.id ? { ...f, status: 'error', error: error.message } : f
-        ));
       }
-    }
 
-    setUploading(false);
+      // Limpar arquivos concluídos após alguns segundos
+      setTimeout(() => {
+        setFiles(prev => prev.filter(f => f.status !== 'completed'));
+        setUploadProgress(0);
+      }, 3000);
+
+    } catch (err) {
+      console.error('Erro geral no upload:', err);
+      setError(`Erro no upload: ${err.message}`);
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const getFileIcon = (file) => {
-    if (file.type.startsWith('image/')) {
-      return <Image className="w-5 h-5 text-blue-500" />;
-    } else if (file.type === 'application/pdf') {
-      return <FileText className="w-5 h-5 text-red-500" />;
-    } else {
-      return <FileText className="w-5 h-5 text-gray-500" />;
-    }
+  const getFileIcon = (type) => {
+    if (type.startsWith('image/')) return <Image className="h-4 w-4" />;
+    if (type === 'text/plain') return <FileText className="h-4 w-4" />;
+    if (type === 'application/pdf') return <File className="h-4 w-4" />;
+    return <File className="h-4 w-4" />;
   };
 
   const formatFileSize = (bytes) => {
@@ -120,126 +184,174 @@ export default function FileUpload({ onUploadComplete }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const getStatusBadge = (file) => {
+    switch (file.status) {
+      case 'pending':
+        return <Badge variant="secondary">Aguardando</Badge>;
+      case 'uploading':
+        return <Badge variant="default">Enviando...</Badge>;
+      case 'processing':
+        return <Badge variant="default">Processando...</Badge>;
+      case 'completed':
+        return (
+          <Badge variant="default" className="bg-green-500">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Concluído
+          </Badge>
+        );
+      case 'error':
+        return (
+          <Badge variant="destructive">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Erro
+          </Badge>
+        );
+      default:
+        return <Badge variant="secondary">Desconhecido</Badge>;
+    }
+  };
+
+  const handleTextProcessComplete = (result) => {
+    if (onUploadComplete) {
+      onUploadComplete(result);
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Área de Drop */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Upload className="w-5 h-5" />
-            <span>Upload de Arquivos</span>
-          </CardTitle>
-          <CardDescription>
-            Faça upload de imagens (PNG, JPG), arquivos de texto (TXT) ou PDFs com cards de preços de grãos
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div
-            {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-              isDragActive 
-                ? 'border-green-400 bg-green-50' 
-                : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
-            }`}
-          >
-            <input {...getInputProps()} />
-            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            {isDragActive ? (
-              <p className="text-green-600 font-medium">Solte os arquivos aqui...</p>
-            ) : (
-              <div>
-                <p className="text-gray-600 mb-2">
-                  Arraste arquivos aqui ou <span className="text-green-600 font-medium">clique para selecionar</span>
-                </p>
-                <p className="text-sm text-gray-500">
-                  Suporte para PNG, JPG, TXT, PDF (máx. 10MB cada)
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+    <div className="w-full space-y-6">
+      <Tabs defaultValue="upload" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="upload" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            Upload de Arquivos
+          </TabsTrigger>
+          <TabsTrigger value="text" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Entrada de Texto
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Erros */}
-      {errors.length > 0 && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <div className="space-y-1">
-              {errors.map((error, index) => (
-                <div key={index}>
-                  <strong>{error.file}:</strong> {error.errors.join(', ')}
-                </div>
-              ))}
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Lista de Arquivos */}
-      {files.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Arquivos Selecionados</CardTitle>
-            <CardDescription>
-              {files.length} arquivo(s) selecionado(s)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {files.map((fileItem) => (
-                <div key={fileItem.id} className="flex items-center space-x-3 p-3 border rounded-lg">
-                  {getFileIcon(fileItem.file)}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {fileItem.file.name}
+        <TabsContent value="upload" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload de Arquivos</CardTitle>
+              <CardDescription>
+                Faça upload de imagens, PDFs ou arquivos de texto com cards de preços para processamento com ChatGPT
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="space-y-4">
+              <div
+                {...getRootProps()}
+                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                  isDragActive 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-muted-foreground/25 hover:border-primary/50'
+                }`}
+              >
+                <input {...getInputProps()} />
+                <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                {isDragActive ? (
+                  <p className="text-lg">Solte os arquivos aqui...</p>
+                ) : (
+                  <div>
+                    <p className="text-lg mb-2">
+                      Arraste arquivos aqui ou clique para selecionar
                     </p>
-                    <p className="text-sm text-gray-500">
-                      {formatFileSize(fileItem.file.size)}
+                    <p className="text-sm text-muted-foreground">
+                      Suporta PNG, JPG, PDF, TXT (máx. 10MB cada)
                     </p>
-                    {fileItem.status === 'uploading' && (
-                      <Progress value={fileItem.progress} className="mt-2" />
-                    )}
-                    {fileItem.status === 'error' && (
-                      <p className="text-sm text-red-500 mt-1">{fileItem.error}</p>
-                    )}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    {fileItem.status === 'completed' && (
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                    )}
-                    {fileItem.status === 'error' && (
-                      <AlertCircle className="w-5 h-5 text-red-500" />
-                    )}
-                    {fileItem.status === 'pending' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(fileItem.id)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {files.some(f => f.status === 'pending') && (
-              <div className="mt-4 flex justify-end">
-                <Button 
-                  onClick={uploadFiles} 
-                  disabled={uploading}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {uploading ? 'Enviando...' : 'Enviar Arquivos'}
-                </Button>
+                )}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {files.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">Arquivos Selecionados:</h4>
+                  {files.map((file) => (
+                    <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3 flex-1">
+                        {getFileIcon(file.type)}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatFileSize(file.size)}
+                          </p>
+                          {(file.status === 'uploading' || file.status === 'processing') && (
+                            <Progress value={file.progress} className="mt-2" />
+                          )}
+                          {file.error && (
+                            <p className="text-xs text-red-500 mt-1">{file.error}</p>
+                          )}
+                          {file.jobId && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Job ID: {file.jobId}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(file)}
+                        </div>
+                      </div>
+                      {!uploading && file.status === 'pending' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(file.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+
+                  {uploading && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Progresso geral</span>
+                        <span>{Math.round(uploadProgress)}%</span>
+                      </div>
+                      <Progress value={uploadProgress} />
+                    </div>
+                  )}
+
+                  <Button 
+                    onClick={uploadFiles} 
+                    disabled={uploading || files.filter(f => f.status === 'pending').length === 0}
+                    className="w-full"
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processando arquivos...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Enviar e Processar {files.filter(f => f.status === 'pending').length} arquivo(s)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="text">
+          <TextInput onProcessComplete={handleTextProcessComplete} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
-}
+};
+
+export default FileUpload;
 
