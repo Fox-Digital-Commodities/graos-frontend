@@ -99,12 +99,12 @@ const FileUpload = ({ onUploadComplete }) => {
               ...f, 
               status: 'processing', 
               progress: 50,
-              uploadedFileId: uploadResult.fileId 
+              uploadedFileId: uploadResult.id // Usar 'id' em vez de 'fileId'
             } : f
           ));
 
           // Iniciar processamento
-          const jobResponse = await processingService.analyzeFile(uploadResult.fileId);
+          const jobResponse = await processingService.analyzeFile(uploadResult.id); // Usar 'id'
           
           setFiles(prev => prev.map(f => 
             f.id === fileItem.id ? { ...f, jobId: jobResponse.jobId } : f
