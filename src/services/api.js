@@ -192,9 +192,7 @@ export const spreadsheetService = {
 export const apiUtils = {
   // Polling para verificar status de job
   pollJobStatus: async (jobId, onUpdate, maxAttempts = 30) => {
-    let attempts = 0;
-    
-    const poll = async () => {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const status = await processingService.getJobStatus(jobId);
         
@@ -203,26 +201,32 @@ export const apiUtils = {
         }
 
         // Se completou ou falhou, parar o polling
-        if (status.status === 'completed' || status.status === 'failed') {
+        if (status.status === 'completed' || status.status === 'error' || status.status === 'failed') {
           return status;
         }
 
-        // Se ainda está processando e não excedeu tentativas, continuar
-        if (attempts < maxAttempts) {
-          attempts++;
-          setTimeout(poll, 2000); // Verificar a cada 2 segundos
-        } else {
-          throw new Error('Timeout: Processamento demorou muito para completar');
+        // Se ainda está processando, aguardar antes da próxima tentativa
+        if (attempt < maxAttempts - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       } catch (error) {
+        console.error(`Erro no polling (tentativa ${attempt + 1}):`, error);
+        
         if (onUpdate) {
           onUpdate({ status: 'failed', error: error.message });
         }
-        throw error;
+        
+        // Se é a última tentativa, lançar o erro
+        if (attempt === maxAttempts - 1) {
+          throw error;
+        }
+        
+        // Aguardar antes de tentar novamente
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
-    };
-
-    return poll();
+    }
+    
+    throw new Error('Timeout: Processamento demorou muito para completar');
   },
 
   // Download de arquivo

@@ -114,15 +114,17 @@ const FileUpload = ({ onUploadComplete }) => {
           const finalStatus = await apiUtils.pollJobStatus(
             jobResponse.jobId,
             (status) => {
-              const progressValue = 50 + (status.progress || 0) / 2; // 50% + até 50% para processamento
-              setFiles(prev => prev.map(f => 
-                f.id === fileItem.id ? { ...f, progress: progressValue } : f
-              ));
-              setUploadProgress(((i * 100) + progressValue) / files.length);
+              if (status && typeof status === 'object') {
+                const progressValue = 50 + (status.progress || 0) / 2; // 50% + até 50% para processamento
+                setFiles(prev => prev.map(f => 
+                  f.id === fileItem.id ? { ...f, progress: progressValue } : f
+                ));
+                setUploadProgress(((i * 100) + progressValue) / files.length);
+              }
             }
           );
 
-          if (finalStatus.status === 'completed') {
+          if (finalStatus && finalStatus.status === 'completed') {
             // Marcar como concluído
             setFiles(prev => prev.map(f => 
               f.id === fileItem.id ? { ...f, status: 'completed', progress: 100 } : f
@@ -140,7 +142,7 @@ const FileUpload = ({ onUploadComplete }) => {
               });
             }
           } else {
-            throw new Error(finalStatus.error || 'Erro no processamento');
+            throw new Error(finalStatus?.error || 'Erro no processamento');
           }
 
         } catch (fileError) {
