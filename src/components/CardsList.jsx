@@ -73,12 +73,30 @@ const mockCards = [
   }
 ];
 
-export default function CardsList() {
+export default function CardsList({ uploadedData = [] }) {
   const [cards] = useState(mockCards);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCard, setSelectedCard] = useState(null);
 
-  const filteredCards = cards.filter(card =>
+  // Combinar dados mockados com dados reais do upload
+  const allCards = [
+    ...uploadedData.map(item => ({
+      id: item.id,
+      titulo: `Processamento - ${item.name}`,
+      dataReferencia: new Date(item.uploadedAt),
+      cotacaoDolar: item.extractedData?.cotacaoDolar || null,
+      cbot: item.extractedData?.cbot || null,
+      observacoes: item.extractedData?.observacoes || null,
+      arquivoOriginal: item.name,
+      produtos: item.extractedData?.produtos || [],
+      createdAt: new Date(item.uploadedAt),
+      updatedAt: new Date(item.uploadedAt),
+      isFromUpload: true
+    })),
+    ...cards
+  ];
+
+  const filteredCards = allCards.filter(card =>
     card.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     card.produtos.some(produto => 
       produto.nome.toLowerCase().includes(searchTerm.toLowerCase())
@@ -124,6 +142,83 @@ export default function CardsList() {
           />
         </div>
       </div>
+
+      {/* Dados Recém-Processados */}
+      {uploadedData.length > 0 && (
+        <Card className="bg-green-50 border-green-200">
+          <CardHeader>
+            <CardTitle className="text-green-800">📊 Dados Recém-Processados</CardTitle>
+            <CardDescription className="text-green-600">
+              {uploadedData.length} arquivo(s) processado(s) recentemente
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {uploadedData.map((item) => (
+                <div key={item.id} className="bg-white p-4 rounded-lg border">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h4 className="font-semibold text-gray-900">{item.name}</h4>
+                      <p className="text-sm text-gray-600">
+                        Processado em {new Date(item.uploadedAt).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      {item.extractedData?.produtos?.length || 0} produto(s)
+                    </Badge>
+                  </div>
+                  
+                  {item.extractedData?.produtos && item.extractedData.produtos.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Produto</TableHead>
+                            <TableHead>Safra</TableHead>
+                            <TableHead>UF</TableHead>
+                            <TableHead>Endereço</TableHead>
+                            <TableHead>Janela de Retirada</TableHead>
+                            <TableHead>Preços</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {item.extractedData.produtos.map((produto, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-medium">{produto.nome}</TableCell>
+                              <TableCell>{produto.safra}</TableCell>
+                              <TableCell>{produto.uf}</TableCell>
+                              <TableCell>{produto.endereco || '-'}</TableCell>
+                              <TableCell>{produto.janelaRetirada || '-'}</TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  {produto.precos?.map((preco, precoIdx) => (
+                                    <div key={precoIdx} className="text-sm">
+                                      {preco.precoBrl && (
+                                        <span className="font-medium">
+                                          {formatCurrency(preco.precoBrl)}
+                                        </span>
+                                      )}
+                                      {preco.precoUsd && (
+                                        <span className="text-gray-600 ml-2">
+                                          ({formatCurrency(preco.precoUsd, 'USD')})
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Lista de Cards */}
       <div className="grid gap-6">

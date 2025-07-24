@@ -21,7 +21,7 @@ function App() {
       </TabsContent>
 
       <TabsContent value="cards" className="space-y-6">
-        <CardsList />
+        <CardsList uploadedData={uploadedFiles} />
       </TabsContent>
 
       <TabsContent value="spreadsheets" className="space-y-6">
