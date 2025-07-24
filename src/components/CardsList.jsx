@@ -312,6 +312,8 @@ function CardDetails({ card }) {
                     <TableHead>Pagamento</TableHead>
                     <TableHead>Preço USD</TableHead>
                     <TableHead>Preço BRL</TableHead>
+                    <TableHead>Endereço</TableHead>
+                    <TableHead>Janela de Retirada</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -324,6 +326,12 @@ function CardDetails({ card }) {
                       </TableCell>
                       <TableCell className="font-medium text-green-600">
                         {formatCurrency(preco.precoBrl)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {preco.endereco || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {preco.janelaRetirada || '-'}
                       </TableCell>
                     </TableRow>
                   ))}
