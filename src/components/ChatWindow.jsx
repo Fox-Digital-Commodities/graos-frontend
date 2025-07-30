@@ -84,7 +84,7 @@ const ChatWindow = ({ conversation, onBack }) => {
       filename: 'audio_message.oga',
       mime: 'audio/ogg; codecs=opus',
       type: 'ptt',
-      url: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+      url: 'https://cdnydm.com/wh/GPI-ZR2xwQvCRH__1QYpuQ.oga',
       timestamp: Math.floor(Date.now() / 1000) - 3100,
       fromMe: true,
       ack: 3

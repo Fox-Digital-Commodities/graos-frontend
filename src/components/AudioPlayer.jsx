@@ -5,7 +5,8 @@ import {
   Pause, 
   Volume2, 
   Download,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 
 const AudioPlayer = ({ audioData, isFromMe = false }) => {
@@ -14,76 +15,190 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [audioSupported, setAudioSupported] = useState(true);
   
   const audioRef = useRef(null);
   const progressRef = useRef(null);
 
+  // Verificar suporte do navegador para diferentes formatos
+  const checkAudioSupport = () => {
+    const audio = new Audio();
+    const formats = {
+      ogg: audio.canPlayType('audio/ogg; codecs="opus"'),
+      oga: audio.canPlayType('audio/ogg; codecs="opus"'),
+      mp3: audio.canPlayType('audio/mpeg'),
+      wav: audio.canPlayType('audio/wav'),
+      webm: audio.canPlayType('audio/webm; codecs="opus"')
+    };
+    
+    console.log('Suporte de áudio:', formats);
+    return formats;
+  };
+
+  // Tentar diferentes estratégias para carregar o áudio
+  const tryLoadAudio = async (url) => {
+    const strategies = [
+      // Estratégia 1: Tentar carregar diretamente
+      () => Promise.resolve(url),
+      
+      // Estratégia 2: Usar proxy CORS se necessário
+      () => Promise.resolve(`https://cors-anywhere.herokuapp.com/${url}`),
+      
+      // Estratégia 3: Tentar fetch e criar blob URL
+      async () => {
+        try {
+          const response = await fetch(url, { 
+            mode: 'cors',
+            headers: {
+              'Accept': 'audio/*'
+            }
+          });
+          if (!response.ok) throw new Error('Fetch failed');
+          const blob = await response.blob();
+          return URL.createObjectURL(blob);
+        } catch (err) {
+          throw new Error('Blob creation failed');
+        }
+      }
+    ];
+
+    for (let i = 0; i < strategies.length; i++) {
+      try {
+        console.log(`Tentando estratégia ${i + 1} para carregar áudio`);
+        const audioUrl = await strategies[i]();
+        
+        // Testar se o áudio carrega
+        return new Promise((resolve, reject) => {
+          const testAudio = new Audio();
+          testAudio.crossOrigin = 'anonymous';
+          
+          testAudio.oncanplaythrough = () => {
+            console.log(`Estratégia ${i + 1} funcionou!`);
+            resolve(audioUrl);
+          };
+          
+          testAudio.onerror = (e) => {
+            console.log(`Estratégia ${i + 1} falhou:`, e);
+            reject(new Error(`Strategy ${i + 1} failed`));
+          };
+          
+          testAudio.src = audioUrl;
+        });
+      } catch (err) {
+        console.log(`Estratégia ${i + 1} falhou:`, err);
+        if (i === strategies.length - 1) {
+          throw new Error('Todas as estratégias falharam');
+        }
+      }
+    }
+  };
+
   // Inicializar áudio quando o componente monta
   useEffect(() => {
-    if (audioData?.url && audioRef.current) {
-      const audio = audioRef.current;
-      
-      const handleLoadedMetadata = () => {
-        setDuration(audio.duration);
-        setLoading(false);
-      };
-      
-      const handleTimeUpdate = () => {
-        setCurrentTime(audio.currentTime);
-      };
-      
-      const handleEnded = () => {
-        setIsPlaying(false);
-        setCurrentTime(0);
-      };
-      
-      const handleError = () => {
-        setError('Erro ao carregar áudio');
-        setLoading(false);
-      };
-      
-      const handleLoadStart = () => {
-        setLoading(true);
-        setError(null);
-      };
+    const initializeAudio = async () => {
+      if (!audioData?.url) {
+        setError('URL de áudio não fornecida');
+        return;
+      }
 
-      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.addEventListener('timeupdate', handleTimeUpdate);
-      audio.addEventListener('ended', handleEnded);
-      audio.addEventListener('error', handleError);
-      audio.addEventListener('loadstart', handleLoadStart);
+      setLoading(true);
+      setError(null);
 
-      return () => {
-        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        audio.removeEventListener('timeupdate', handleTimeUpdate);
-        audio.removeEventListener('ended', handleEnded);
-        audio.removeEventListener('error', handleError);
-        audio.removeEventListener('loadstart', handleLoadStart);
-      };
-    }
+      try {
+        // Verificar suporte do navegador
+        const support = checkAudioSupport();
+        if (!support.ogg && !support.oga && !support.webm) {
+          console.warn('Navegador pode não suportar formato Opus/OGG');
+        }
+
+        // Tentar carregar o áudio
+        const workingUrl = await tryLoadAudio(audioData.url);
+        
+        if (audioRef.current) {
+          const audio = audioRef.current;
+          audio.crossOrigin = 'anonymous';
+          
+          const handleLoadedMetadata = () => {
+            setDuration(audio.duration);
+            setLoading(false);
+            setAudioSupported(true);
+          };
+          
+          const handleTimeUpdate = () => {
+            setCurrentTime(audio.currentTime);
+          };
+          
+          const handleEnded = () => {
+            setIsPlaying(false);
+            setCurrentTime(0);
+          };
+          
+          const handleError = (e) => {
+            console.error('Erro no elemento de áudio:', e);
+            setError('Formato de áudio não suportado pelo navegador');
+            setLoading(false);
+            setAudioSupported(false);
+          };
+          
+          const handleLoadStart = () => {
+            setLoading(true);
+            setError(null);
+          };
+
+          // Limpar listeners anteriores
+          audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          audio.removeEventListener('timeupdate', handleTimeUpdate);
+          audio.removeEventListener('ended', handleEnded);
+          audio.removeEventListener('error', handleError);
+          audio.removeEventListener('loadstart', handleLoadStart);
+
+          // Adicionar novos listeners
+          audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+          audio.addEventListener('timeupdate', handleTimeUpdate);
+          audio.addEventListener('ended', handleEnded);
+          audio.addEventListener('error', handleError);
+          audio.addEventListener('loadstart', handleLoadStart);
+
+          // Definir a fonte
+          audio.src = workingUrl;
+          audio.load();
+        }
+      } catch (err) {
+        console.error('Erro ao inicializar áudio:', err);
+        setError('Não foi possível carregar o áudio');
+        setLoading(false);
+        setAudioSupported(false);
+      }
+    };
+
+    initializeAudio();
   }, [audioData?.url]);
 
   // Controlar play/pause
   const togglePlayPause = async () => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || !audioSupported) return;
     
     try {
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
       } else {
-        await audioRef.current.play();
-        setIsPlaying(true);
+        // Tentar reproduzir com interação do usuário
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+          setIsPlaying(true);
+        }
       }
     } catch (err) {
       console.error('Erro ao reproduzir áudio:', err);
-      setError('Erro ao reproduzir áudio');
+      setError('Erro ao reproduzir áudio. Tente novamente.');
     }
   };
 
   // Controlar progresso
   const handleProgressClick = (e) => {
-    if (!audioRef.current || !progressRef.current) return;
+    if (!audioRef.current || !progressRef.current || !audioSupported) return;
     
     const rect = progressRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -104,14 +219,22 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
   };
 
   // Download do áudio
-  const handleDownload = () => {
-    if (audioData?.url) {
+  const handleDownload = async () => {
+    if (!audioData?.url) return;
+    
+    try {
+      // Tentar download direto primeiro
       const link = document.createElement('a');
       link.href = audioData.url;
       link.download = audioData.filename || 'audio.oga';
+      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    } catch (err) {
+      console.error('Erro no download:', err);
+      // Fallback: abrir em nova aba
+      window.open(audioData.url, '_blank');
     }
   };
 
@@ -130,10 +253,9 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
     <div className={`flex items-center space-x-3 p-3 rounded-lg max-w-xs ${
       isFromMe ? 'bg-green-600' : 'bg-gray-200'
     }`}>
-      {/* Elemento de áudio oculto */}
+      {/* Elemento de áudio */}
       <audio
         ref={audioRef}
-        src={audioData.url}
         preload="metadata"
       />
 
@@ -142,7 +264,7 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
         variant="ghost"
         size="sm"
         onClick={togglePlayPause}
-        disabled={loading || error}
+        disabled={loading || !audioSupported}
         className={`w-8 h-8 p-0 rounded-full ${
           isFromMe 
             ? 'hover:bg-green-700 text-white' 
@@ -151,6 +273,8 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
       >
         {loading ? (
           <Loader2 className="w-4 h-4 animate-spin" />
+        ) : !audioSupported ? (
+          <AlertCircle className="w-4 h-4" />
         ) : isPlaying ? (
           <Pause className="w-4 h-4" />
         ) : (
@@ -158,37 +282,47 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
         )}
       </Button>
 
-      {/* Visualização de onda e progresso */}
+      {/* Visualização de progresso */}
       <div className="flex-1 space-y-1">
-        {/* Barra de progresso */}
-        <div
-          ref={progressRef}
-          className={`h-1 rounded-full cursor-pointer ${
-            isFromMe ? 'bg-green-800' : 'bg-gray-400'
-          }`}
-          onClick={handleProgressClick}
-        >
-          <div
-            className={`h-full rounded-full transition-all duration-100 ${
-              isFromMe ? 'bg-white' : 'bg-green-500'
-            }`}
-            style={{ width: `${progressPercentage}%` }}
-          />
-        </div>
+        {audioSupported ? (
+          <>
+            {/* Barra de progresso */}
+            <div
+              ref={progressRef}
+              className={`h-1 rounded-full cursor-pointer ${
+                isFromMe ? 'bg-green-800' : 'bg-gray-400'
+              }`}
+              onClick={handleProgressClick}
+            >
+              <div
+                className={`h-full rounded-full transition-all duration-100 ${
+                  isFromMe ? 'bg-white' : 'bg-green-500'
+                }`}
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
 
-        {/* Tempo */}
-        <div className="flex justify-between items-center">
-          <span className={`text-xs ${
+            {/* Tempo */}
+            <div className="flex justify-between items-center">
+              <span className={`text-xs ${
+                isFromMe ? 'text-green-100' : 'text-gray-600'
+              }`}>
+                {formatTime(currentTime)}
+              </span>
+              <span className={`text-xs ${
+                isFromMe ? 'text-green-100' : 'text-gray-600'
+              }`}>
+                {formatTime(duration)}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className={`text-xs ${
             isFromMe ? 'text-green-100' : 'text-gray-600'
           }`}>
-            {formatTime(currentTime)}
-          </span>
-          <span className={`text-xs ${
-            isFromMe ? 'text-green-100' : 'text-gray-600'
-          }`}>
-            {formatTime(duration)}
-          </span>
-        </div>
+            {error || 'Formato não suportado'}
+          </div>
+        )}
       </div>
 
       {/* Botão de download */}
@@ -204,15 +338,6 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
       >
         <Download className="w-3 h-3" />
       </Button>
-
-      {/* Indicador de erro */}
-      {error && (
-        <div className={`text-xs ${
-          isFromMe ? 'text-red-200' : 'text-red-600'
-        }`}>
-          Erro
-        </div>
-      )}
     </div>
   );
 };
