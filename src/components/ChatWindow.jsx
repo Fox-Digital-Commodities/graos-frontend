@@ -20,7 +20,8 @@ import {
   Image as ImageIcon,
   FileText,
   MapPin,
-  AlertCircle
+  AlertCircle,
+  MessageCircle
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { maytapiService, maytapiUtils } from '../services/maytapi';
@@ -320,9 +321,9 @@ const ChatWindow = ({ conversation, onBack }) => {
   const contactName = maytapiUtils.getContactName(contact);
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-[600px] flex flex-col">
       {/* Header da conversa */}
-      <CardHeader className="pb-3 border-b">
+      <CardHeader className="pb-3 border-b flex-shrink-0">
         <div className="flex items-center space-x-3">
           <Button variant="ghost" size="sm" onClick={onBack} className="lg:hidden">
             <ArrowLeft className="w-4 h-4" />
@@ -357,7 +358,7 @@ const ChatWindow = ({ conversation, onBack }) => {
       </CardHeader>
 
       {error && (
-        <div className="p-4 border-b">
+        <div className="p-4 border-b flex-shrink-0">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
@@ -366,7 +367,7 @@ const ChatWindow = ({ conversation, onBack }) => {
       )}
 
       {/* Área de mensagens */}
-      <CardContent className="flex-1 p-0">
+      <CardContent className="flex-1 p-0 overflow-hidden">
         <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
           {loading ? (
             <div className="flex items-center justify-center h-full">
@@ -392,7 +393,7 @@ const ChatWindow = ({ conversation, onBack }) => {
       </CardContent>
 
       {/* Input de nova mensagem */}
-      <div className="p-4 border-t">
+      <div className="p-4 border-t flex-shrink-0">
         <form onSubmit={handleSendMessage} className="flex space-x-2">
           <Input
             value={newMessage}

@@ -143,11 +143,12 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
           setConversations(prev => {
             const existingIds = new Set(prev.map(conv => conv.id));
             const newConversations = transformedConversations.filter(conv => !existingIds.has(conv.id));
-            return [...prev, ...newConversations];
+            // Inverter ordenação para mostrar conversas mais recentes primeiro
+            return [...prev, ...newConversations.reverse()];
           });
         } else {
-          // Substituir lista (primeira carga ou refresh)
-          setConversations(transformedConversations);
+          // Substituir lista (primeira carga ou refresh) - inverter ordenação
+          setConversations(transformedConversations.reverse());
         }
         
         // Verificar se há mais páginas
@@ -160,11 +161,12 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
         }
         
       } else if (response && Array.isArray(response)) {
-        // Caso a resposta seja diretamente um array
+        // Caso a resposta seja diretamente um array - inverter ordenação
+        const reversedResponse = [...response].reverse();
         if (append) {
-          setConversations(prev => [...prev, ...response]);
+          setConversations(prev => [...prev, ...reversedResponse]);
         } else {
-          setConversations(response);
+          setConversations(reversedResponse);
         }
         setHasMore(response.length === CONVERSATIONS_PER_PAGE);
       } else {
