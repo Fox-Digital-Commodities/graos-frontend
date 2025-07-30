@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,8 @@ import {
   Check,
   Loader2,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  ChevronDown
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { maytapiService, maytapiUtils } from '../services/maytapi';
@@ -26,6 +27,17 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalConversations, setTotalConversations] = useState(0);
+  
+  // Refs para scroll infinito
+  const scrollAreaRef = useRef(null);
+  const loadingRef = useRef(false);
+  
+  const CONVERSATIONS_PER_PAGE = 20; // Reduzido para melhor performance
+  const SCROLL_THRESHOLD = 200; // Pixels antes do fim para carregar mais
 
   // Dados de teste para desenvolvimento
   const mockConversations = [
@@ -85,19 +97,25 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
     }
   ];
 
-  // Carregar conversas
-  const loadConversations = async (showRefreshLoader = false) => {
+  // Carregar conversas com paginação otimizada
+  const loadConversations = useCallback(async (page = 0, append = false, showRefreshLoader = false) => {
+    // Evitar múltiplas chamadas simultâneas
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+
     try {
       if (showRefreshLoader) {
         setRefreshing(true);
+      } else if (append) {
+        setLoadingMore(true);
       } else {
         setLoading(true);
       }
       setError(null);
 
-      const response = await maytapiService.getConversations();
+      const response = await maytapiService.getConversations(page, CONVERSATIONS_PER_PAGE);
       
-      console.log('Resposta da API:', response); // Debug
+      console.log('Resposta da API (página', page, '):', response); // Debug
       
       if (response && response.success && Array.isArray(response.data)) {
         // Transformar dados da API para formato esperado pelo componente
@@ -119,42 +137,105 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
           },
           unreadCount: 0
         }));
-        setConversations(transformedConversations);
         
-        // Buscar última mensagem para cada conversa (opcional, pode ser lento)
-        // loadLastMessagesForConversations(transformedConversations);
+        if (append) {
+          // Adicionar à lista existente (scroll infinito) - evitar duplicatas
+          setConversations(prev => {
+            const existingIds = new Set(prev.map(conv => conv.id));
+            const newConversations = transformedConversations.filter(conv => !existingIds.has(conv.id));
+            return [...prev, ...newConversations];
+          });
+        } else {
+          // Substituir lista (primeira carga ou refresh)
+          setConversations(transformedConversations);
+        }
+        
+        // Verificar se há mais páginas
+        setHasMore(transformedConversations.length === CONVERSATIONS_PER_PAGE);
+        setCurrentPage(page);
+        
+        // Estimar total baseado na primeira página
+        if (page === 0 && transformedConversations.length > 0) {
+          setTotalConversations(transformedConversations.length === CONVERSATIONS_PER_PAGE ? '650+' : transformedConversations.length);
+        }
+        
       } else if (response && Array.isArray(response)) {
         // Caso a resposta seja diretamente um array
-        setConversations(response);
+        if (append) {
+          setConversations(prev => [...prev, ...response]);
+        } else {
+          setConversations(response);
+        }
+        setHasMore(response.length === CONVERSATIONS_PER_PAGE);
       } else {
         console.warn('Formato de resposta inesperado, usando dados de teste:', response);
-        setConversations(mockConversations);
+        if (!append) {
+          setConversations(mockConversations);
+          setHasMore(false);
+        }
       }
     } catch (err) {
       console.error('Erro ao carregar conversas, usando dados de teste:', err);
       setError(`API indisponível (usando dados de teste): ${err.message}`);
-      setConversations(mockConversations);
+      if (!append) {
+        setConversations(mockConversations);
+        setHasMore(false);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
+      loadingRef.current = false;
     }
-  };
+  }, [CONVERSATIONS_PER_PAGE]);
 
   // Carregar conversas ao montar o componente
   useEffect(() => {
     loadConversations();
-  }, []);
+  }, [loadConversations]);
 
-  // Filtrar conversas
-  const filteredConversations = (Array.isArray(conversations) ? conversations : []).filter(conv => {
-    const contactName = maytapiUtils.getContactName(conv.contact || {});
-    const lastMessage = conv.lastMessage?.message || '';
+  // Carregar mais conversas (scroll infinito) com throttling
+  const loadMoreConversations = useCallback(async () => {
+    if (!loadingRef.current && hasMore && !loadingMore) {
+      await loadConversations(currentPage + 1, true);
+    }
+  }, [currentPage, hasMore, loadingMore, loadConversations]);
+
+  // Refresh das conversas
+  const handleRefresh = useCallback(() => {
+    setCurrentPage(0);
+    setHasMore(true);
+    setConversations([]);
+    loadConversations(0, false, true);
+  }, [loadConversations]);
+
+  // Detectar scroll para carregar mais com throttling
+  const handleScroll = useCallback((e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - SCROLL_THRESHOLD;
     
-    return (
-      contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
+    if (isNearBottom && hasMore && !loadingMore && !loadingRef.current) {
+      loadMoreConversations();
+    }
+  }, [hasMore, loadingMore, loadMoreConversations, SCROLL_THRESHOLD]);
+
+  // Filtrar conversas com memoização para performance
+  const filteredConversations = useMemo(() => {
+    if (!Array.isArray(conversations)) return [];
+    
+    if (!searchTerm.trim()) return conversations;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return conversations.filter(conv => {
+      const contactName = maytapiUtils.getContactName(conv.contact || {});
+      const lastMessage = conv.lastMessage?.message || '';
+      
+      return (
+        contactName.toLowerCase().includes(searchLower) ||
+        lastMessage.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [conversations, searchTerm]);
 
   // Renderizar status da mensagem
   const renderMessageStatus = (message) => {
@@ -171,8 +252,8 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
     return <Clock className="w-4 h-4 text-gray-400" />;
   };
 
-  // Renderizar item da conversa
-  const renderConversationItem = (conversation) => {
+  // Renderizar item da conversa com memoização
+  const renderConversationItem = useCallback((conversation) => {
     const contact = conversation.contact || {};
     const lastMessage = conversation.lastMessage;
     const contactName = maytapiUtils.getContactName(contact);
@@ -240,7 +321,7 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
         </div>
       </div>
     );
-  };
+  }, [selectedChatId, onSelectChat]);
 
   if (loading) {
     return (
@@ -271,14 +352,15 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
               <span>Conversas do WhatsApp</span>
             </CardTitle>
             <CardDescription>
-              {filteredConversations.length} conversa(s) encontrada(s)
+              {filteredConversations.length} de {totalConversations || conversations.length} conversa(s)
+              {searchTerm && ` (filtradas)`}
             </CardDescription>
           </div>
           
           <Button
             variant="outline"
             size="sm"
-            onClick={() => loadConversations(true)}
+            onClick={handleRefresh}
             disabled={refreshing}
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
@@ -310,7 +392,11 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
       )}
 
       <CardContent className="flex-1 p-0">
-        <ScrollArea className="h-full">
+        <ScrollArea 
+          className="h-full" 
+          ref={scrollAreaRef}
+          onScrollCapture={handleScroll}
+        >
           {filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-gray-500">
               <MessageCircle className="w-12 h-12 mb-4" />
@@ -321,12 +407,39 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {filteredConversations.map((conversation, index) => (
-                <div key={conversation.id}>
-                  {renderConversationItem(conversation)}
-                  {index < filteredConversations.length - 1 && <Separator />}
+              {filteredConversations.map((conversation) => 
+                renderConversationItem(conversation)
+              )}
+              
+              {/* Indicador de carregamento para scroll infinito */}
+              {loadingMore && (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2 className="w-6 h-6 animate-spin text-green-500 mr-2" />
+                  <span className="text-gray-600">Carregando mais conversas...</span>
                 </div>
-              ))}
+              )}
+              
+              {/* Indicador de fim da lista */}
+              {!hasMore && conversations.length > 0 && !searchTerm && (
+                <div className="flex items-center justify-center p-4 text-gray-500">
+                  <CheckCheck className="w-4 h-4 mr-2" />
+                  <span className="text-sm">Todas as conversas foram carregadas</span>
+                </div>
+              )}
+              
+              {/* Botão para carregar mais (fallback) */}
+              {hasMore && !loadingMore && conversations.length >= CONVERSATIONS_PER_PAGE && (
+                <div className="flex items-center justify-center p-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={loadMoreConversations}
+                    className="w-full"
+                  >
+                    <ChevronDown className="w-4 h-4 mr-2" />
+                    Carregar mais conversas
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </ScrollArea>
