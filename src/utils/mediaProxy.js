@@ -1,7 +1,7 @@
 // Utilitário para contornar problemas de CORS com mídia do WhatsApp
 
 // URL base da API
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = 'http://localhost:3001/api';
 
 // Cache para URLs já processadas
 const urlCache = new Map();

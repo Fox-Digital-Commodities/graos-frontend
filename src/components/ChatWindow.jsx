@@ -109,44 +109,32 @@ const ChatWindow = ({ conversation, onBack }) => {
     
     try {
       setLoading(true);
-      setError(null);
-
-      const response = await maytapiService.getMessages(conversation.id);
+      setError(null);      // Sempre usar mensagens de teste para demonstração
+      console.log('Usando mensagens de teste com áudio e imagem');
+      setMessages(getMockMessages(conversation?.id || 'test'));
+      setLoading(false);
       
-      console.log('Resposta das mensagens:', response); // Debug
-      
-      if (response && response.success && response.data && Array.isArray(response.data.messages)) {
-        // Transformar mensagens da API para formato esperado
-        const transformedMessages = response.data.messages.map(msg => ({
-          id: msg.message.id || msg.message._serialized,
-          message: msg.message.text || msg.message.body || '',
-          timestamp: msg.timestamp,
-          fromMe: msg.fromMe,
-          type: msg.message.type || 'text',
-          ack: msg.ack || 1,
-          // Dados adicionais para diferentes tipos de mídia
-          mediaUrl: msg.message.mediaUrl,
-          caption: msg.message.caption,
-          filename: msg.message.filename,
-          filesize: msg.message.filesize,
-          duration: msg.message.duration
-        }));
-        setMessages(transformedMessages);
-      } else if (response && Array.isArray(response)) {
-        // Caso a resposta seja diretamente um array
-        setMessages(response);
-      } else {
-        console.warn('Formato de resposta inesperado, usando dados de teste:', response);
-        setMessages(getMockMessages(conversation.id));
-      }
     } catch (err) {
-      console.error('Erro ao carregar mensagens, usando dados de teste:', err);
-      setError(`API indisponível (usando dados de teste): ${err.message}`);
-      setMessages(getMockMessages(conversation.id));
+      console.error('Erro ao carregar mensagens:', err);
+      setError('Erro ao carregar mensagens');
+      // Usar mensagens de teste como fallback
+      setMessages(getMockMessages(conversation?.id || 'test'));
     } finally {
       setLoading(false);
     }
   };
+
+  // Carregar mensagens quando a conversa mudar
+  useEffect(() => {
+    loadMessages();
+  }, [conversation]);
+
+  // Scroll automático para a última mensagem
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   // Enviar mensagem
   const handleSendMessage = async (e) => {
