@@ -8,7 +8,7 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
-import { getWorkingMediaUrl, checkAudioSupport } from '../utils/mediaProxy';
+import { getWorkingMediaUrl, checkAudioSupport, getDownloadUrl } from '../utils/mediaProxy';
 
 const AudioPlayer = ({ audioData, isFromMe = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -155,8 +155,8 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
     if (!audioData?.url) return;
     
     try {
-      // Usar URL funcional se disponível
-      const downloadUrl = workingUrl || audioData.url;
+      // Usar endpoint de download do backend
+      const downloadUrl = getDownloadUrl(audioData.url, audioData.filename);
       
       const link = document.createElement('a');
       link.href = downloadUrl;

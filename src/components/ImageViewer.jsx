@@ -8,7 +8,7 @@ import {
   ZoomOut,
   RotateCw
 } from 'lucide-react';
-import { getWorkingMediaUrl } from '../utils/mediaProxy';
+import { getWorkingMediaUrl, getDownloadUrl } from '../utils/mediaProxy';
 
 const ImageViewer = ({ imageData, isFromMe = false, onClick }) => {
   const [loading, setLoading] = useState(false);
@@ -47,12 +47,15 @@ const ImageViewer = ({ imageData, isFromMe = false, onClick }) => {
 
   // Download da imagem
   const handleDownload = async () => {
-    const imageUrl = workingUrl || imageData?.mediaUrl || imageData?.url;
+    const imageUrl = imageData?.mediaUrl || imageData?.url;
     if (!imageUrl) return;
     
     try {
+      // Usar endpoint de download do backend
+      const downloadUrl = getDownloadUrl(imageUrl, imageData?.filename);
+      
       const link = document.createElement('a');
-      link.href = imageUrl;
+      link.href = downloadUrl;
       link.download = imageData?.filename || 'imagem.jpg';
       link.target = '_blank';
       document.body.appendChild(link);

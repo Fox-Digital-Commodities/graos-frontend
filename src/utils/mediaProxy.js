@@ -1,18 +1,13 @@
 // Utilitário para contornar problemas de CORS com mídia do WhatsApp
 
-// Lista de proxies CORS públicos (em ordem de preferência)
-const CORS_PROXIES = [
-  'https://api.allorigins.win/raw?url=',
-  'https://cors-anywhere.herokuapp.com/',
-  'https://thingproxy.freeboard.io/fetch/',
-  'https://api.codetabs.com/v1/proxy?quest='
-];
+// URL base da API
+const API_BASE_URL = 'http://localhost:3001';
 
 // Cache para URLs já processadas
 const urlCache = new Map();
 
 /**
- * Tenta carregar uma URL de mídia usando diferentes estratégias
+ * Tenta carregar uma URL de mídia usando o backend como proxy
  * @param {string} originalUrl - URL original da mídia
  * @param {string} type - Tipo de mídia ('audio' ou 'image')
  * @returns {Promise<string>} - URL funcional ou erro
@@ -28,20 +23,17 @@ export const getWorkingMediaUrl = async (originalUrl, type = 'audio') => {
     return urlCache.get(cacheKey);
   }
 
-  console.log(`Tentando carregar ${type}:`, originalUrl);
+  console.log(`Tentando carregar ${type} via backend:`, originalUrl);
 
   const strategies = [
-    // Estratégia 1: URL direta
+    // Estratégia 1: Backend proxy (principal)
+    () => testBackendProxy(originalUrl, type),
+    
+    // Estratégia 2: URL direta (fallback)
     () => testDirectUrl(originalUrl, type),
     
-    // Estratégia 2: Proxies CORS
-    ...CORS_PROXIES.map(proxy => () => testProxyUrl(proxy + encodeURIComponent(originalUrl), type)),
-    
-    // Estratégia 3: Fetch e Blob (para áudio)
-    ...(type === 'audio' ? [() => createBlobUrl(originalUrl)] : []),
-    
-    // Estratégia 4: Base64 embed (para imagens pequenas)
-    ...(type === 'image' ? [() => createBase64Url(originalUrl)] : [])
+    // Estratégia 3: Proxies CORS públicos (último recurso)
+    () => testPublicProxies(originalUrl, type)
   ];
 
   for (let i = 0; i < strategies.length; i++) {
@@ -60,6 +52,53 @@ export const getWorkingMediaUrl = async (originalUrl, type = 'audio') => {
   }
 
   throw new Error(`Todas as estratégias falharam para ${type}`);
+};
+
+/**
+ * Testa o proxy do backend
+ */
+const testBackendProxy = async (url, type) => {
+  const proxyUrl = `${API_BASE_URL}/media/proxy?url=${encodeURIComponent(url)}&type=${type}`;
+  
+  return new Promise((resolve, reject) => {
+    if (type === 'audio') {
+      const audio = new Audio();
+      
+      const timeout = setTimeout(() => {
+        reject(new Error('Timeout no backend proxy'));
+      }, 10000);
+      
+      audio.oncanplaythrough = () => {
+        clearTimeout(timeout);
+        resolve(proxyUrl);
+      };
+      
+      audio.onerror = (e) => {
+        clearTimeout(timeout);
+        reject(new Error('Erro no backend proxy de áudio'));
+      };
+      
+      audio.src = proxyUrl;
+    } else if (type === 'image') {
+      const img = new Image();
+      
+      const timeout = setTimeout(() => {
+        reject(new Error('Timeout no backend proxy'));
+      }, 10000);
+      
+      img.onload = () => {
+        clearTimeout(timeout);
+        resolve(proxyUrl);
+      };
+      
+      img.onerror = (e) => {
+        clearTimeout(timeout);
+        reject(new Error('Erro no backend proxy de imagem'));
+      };
+      
+      img.src = proxyUrl;
+    }
+  });
 };
 
 /**
@@ -110,100 +149,38 @@ const testDirectUrl = async (url, type) => {
 };
 
 /**
- * Testa uma URL através de proxy
+ * Testa proxies CORS públicos como último recurso
  */
-const testProxyUrl = async (proxyUrl, type) => {
-  return new Promise((resolve, reject) => {
-    if (type === 'audio') {
-      const audio = new Audio();
-      
-      const timeout = setTimeout(() => {
-        reject(new Error('Timeout no proxy'));
-      }, 8000);
-      
-      audio.oncanplaythrough = () => {
-        clearTimeout(timeout);
-        resolve(proxyUrl);
-      };
-      
-      audio.onerror = () => {
-        clearTimeout(timeout);
-        reject(new Error('Erro no proxy de áudio'));
-      };
-      
-      audio.src = proxyUrl;
-    } else if (type === 'image') {
-      const img = new Image();
-      
-      const timeout = setTimeout(() => {
-        reject(new Error('Timeout no proxy'));
-      }, 8000);
-      
-      img.onload = () => {
-        clearTimeout(timeout);
-        resolve(proxyUrl);
-      };
-      
-      img.onerror = () => {
-        clearTimeout(timeout);
-        reject(new Error('Erro no proxy de imagem'));
-      };
-      
-      img.src = proxyUrl;
+const testPublicProxies = async (url, type) => {
+  const proxies = [
+    'https://api.allorigins.win/raw?url=',
+    'https://cors-anywhere.herokuapp.com/',
+    'https://thingproxy.freeboard.io/fetch/',
+  ];
+
+  for (const proxy of proxies) {
+    try {
+      const proxyUrl = proxy + encodeURIComponent(url);
+      await testDirectUrl(proxyUrl, type);
+      return proxyUrl;
+    } catch (error) {
+      console.log(`Proxy ${proxy} falhou:`, error.message);
     }
+  }
+  
+  throw new Error('Todos os proxies públicos falharam');
+};
+
+/**
+ * Obtém URL para download direto via backend
+ */
+export const getDownloadUrl = (originalUrl, filename) => {
+  const params = new URLSearchParams({
+    url: originalUrl,
+    ...(filename && { filename })
   });
-};
-
-/**
- * Cria uma Blob URL para áudio
- */
-const createBlobUrl = async (url) => {
-  try {
-    const response = await fetch(url, {
-      mode: 'cors',
-      headers: {
-        'Accept': 'audio/*'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    
-    const blob = await response.blob();
-    return URL.createObjectURL(blob);
-  } catch (error) {
-    throw new Error(`Falha ao criar blob: ${error.message}`);
-  }
-};
-
-/**
- * Cria uma URL base64 para imagem
- */
-const createBase64Url = async (url) => {
-  try {
-    const response = await fetch(url, {
-      mode: 'cors',
-      headers: {
-        'Accept': 'image/*'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    
-    const blob = await response.blob();
-    
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error('Erro ao converter para base64'));
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    throw new Error(`Falha ao criar base64: ${error.message}`);
-  }
+  
+  return `${API_BASE_URL}/media/download?${params.toString()}`;
 };
 
 /**
@@ -231,6 +208,7 @@ export const checkAudioSupport = () => {
 
 export default {
   getWorkingMediaUrl,
+  getDownloadUrl,
   clearMediaCache,
   checkAudioSupport
 };
