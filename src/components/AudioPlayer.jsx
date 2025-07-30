@@ -8,6 +8,7 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
+import { getWorkingMediaUrl, checkAudioSupport } from '../utils/mediaProxy';
 
 const AudioPlayer = ({ audioData, isFromMe = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -16,82 +17,10 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [audioSupported, setAudioSupported] = useState(true);
+  const [workingUrl, setWorkingUrl] = useState(null);
   
   const audioRef = useRef(null);
   const progressRef = useRef(null);
-
-  // Verificar suporte do navegador para diferentes formatos
-  const checkAudioSupport = () => {
-    const audio = new Audio();
-    const formats = {
-      ogg: audio.canPlayType('audio/ogg; codecs="opus"'),
-      oga: audio.canPlayType('audio/ogg; codecs="opus"'),
-      mp3: audio.canPlayType('audio/mpeg'),
-      wav: audio.canPlayType('audio/wav'),
-      webm: audio.canPlayType('audio/webm; codecs="opus"')
-    };
-    
-    console.log('Suporte de áudio:', formats);
-    return formats;
-  };
-
-  // Tentar diferentes estratégias para carregar o áudio
-  const tryLoadAudio = async (url) => {
-    const strategies = [
-      // Estratégia 1: Tentar carregar diretamente
-      () => Promise.resolve(url),
-      
-      // Estratégia 2: Usar proxy CORS se necessário
-      () => Promise.resolve(`https://cors-anywhere.herokuapp.com/${url}`),
-      
-      // Estratégia 3: Tentar fetch e criar blob URL
-      async () => {
-        try {
-          const response = await fetch(url, { 
-            mode: 'cors',
-            headers: {
-              'Accept': 'audio/*'
-            }
-          });
-          if (!response.ok) throw new Error('Fetch failed');
-          const blob = await response.blob();
-          return URL.createObjectURL(blob);
-        } catch (err) {
-          throw new Error('Blob creation failed');
-        }
-      }
-    ];
-
-    for (let i = 0; i < strategies.length; i++) {
-      try {
-        console.log(`Tentando estratégia ${i + 1} para carregar áudio`);
-        const audioUrl = await strategies[i]();
-        
-        // Testar se o áudio carrega
-        return new Promise((resolve, reject) => {
-          const testAudio = new Audio();
-          testAudio.crossOrigin = 'anonymous';
-          
-          testAudio.oncanplaythrough = () => {
-            console.log(`Estratégia ${i + 1} funcionou!`);
-            resolve(audioUrl);
-          };
-          
-          testAudio.onerror = (e) => {
-            console.log(`Estratégia ${i + 1} falhou:`, e);
-            reject(new Error(`Strategy ${i + 1} failed`));
-          };
-          
-          testAudio.src = audioUrl;
-        });
-      } catch (err) {
-        console.log(`Estratégia ${i + 1} falhou:`, err);
-        if (i === strategies.length - 1) {
-          throw new Error('Todas as estratégias falharam');
-        }
-      }
-    }
-  };
 
   // Inicializar áudio quando o componente monta
   useEffect(() => {
@@ -103,20 +32,23 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
 
       setLoading(true);
       setError(null);
+      setAudioSupported(true);
 
       try {
         // Verificar suporte do navegador
         const support = checkAudioSupport();
+        console.log('Suporte de áudio:', support);
+        
         if (!support.ogg && !support.oga && !support.webm) {
           console.warn('Navegador pode não suportar formato Opus/OGG');
         }
 
-        // Tentar carregar o áudio
-        const workingUrl = await tryLoadAudio(audioData.url);
+        // Tentar obter URL funcional
+        const url = await getWorkingMediaUrl(audioData.url, 'audio');
+        setWorkingUrl(url);
         
         if (audioRef.current) {
           const audio = audioRef.current;
-          audio.crossOrigin = 'anonymous';
           
           const handleLoadedMetadata = () => {
             setDuration(audio.duration);
@@ -160,7 +92,7 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
           audio.addEventListener('loadstart', handleLoadStart);
 
           // Definir a fonte
-          audio.src = workingUrl;
+          audio.src = url;
           audio.load();
         }
       } catch (err) {
@@ -223,9 +155,11 @@ const AudioPlayer = ({ audioData, isFromMe = false }) => {
     if (!audioData?.url) return;
     
     try {
-      // Tentar download direto primeiro
+      // Usar URL funcional se disponível
+      const downloadUrl = workingUrl || audioData.url;
+      
       const link = document.createElement('a');
-      link.href = audioData.url;
+      link.href = downloadUrl;
       link.download = audioData.filename || 'audio.oga';
       link.target = '_blank';
       document.body.appendChild(link);

@@ -26,6 +26,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { maytapiService, maytapiUtils } from '../services/maytapi';
 import AudioPlayer from './AudioPlayer';
+import ImageViewer from './ImageViewer';
 
 const ChatWindow = ({ conversation, onBack }) => {
   const [messages, setMessages] = useState([]);
@@ -88,6 +89,17 @@ const ChatWindow = ({ conversation, onBack }) => {
       timestamp: Math.floor(Date.now() / 1000) - 3100,
       fromMe: true,
       ack: 3
+    },
+    {
+      id: 'msg7',
+      caption: 'Foto do produto',
+      filename: 'produto.jpg',
+      mime: 'image/jpeg',
+      type: 'image',
+      mediaUrl: 'https://picsum.photos/300/200',
+      timestamp: Math.floor(Date.now() / 1000) - 3000,
+      fromMe: false,
+      ack: 2
     }
   ];
 
@@ -208,25 +220,10 @@ const ChatWindow = ({ conversation, onBack }) => {
     switch (message.type) {
       case 'image':
         return (
-          <div className="space-y-2">
-            {message.mediaUrl && (
-              <img 
-                src={message.mediaUrl} 
-                alt="Imagem" 
-                className="max-w-xs rounded-lg cursor-pointer"
-                onClick={() => window.open(message.mediaUrl, '_blank')}
-              />
-            )}
-            {message.caption && (
-              <p className="text-sm">{message.caption}</p>
-            )}
-            {!message.mediaUrl && (
-              <div className="flex items-center space-x-2 text-gray-500">
-                <ImageIcon className="w-4 h-4" />
-                <span>Imagem</span>
-              </div>
-            )}
-          </div>
+          <ImageViewer 
+            imageData={message} 
+            isFromMe={message.fromMe}
+          />
         );
       
       case 'document':
