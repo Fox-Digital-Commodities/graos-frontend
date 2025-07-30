@@ -100,7 +100,26 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
       console.log('Resposta da API:', response); // Debug
       
       if (response && response.success && Array.isArray(response.data)) {
-        setConversations(response.data);
+        // Transformar dados da API para formato esperado pelo componente
+        const transformedConversations = response.data.map(conv => ({
+          id: conv._serialized,
+          contact: {
+            id: conv._serialized,
+            name: conv.name || conv.user,
+            pushname: conv.name || conv.user,
+            profilePicUrl: null
+          },
+          lastMessage: {
+            id: 'temp',
+            message: 'Clique para ver mensagens',
+            timestamp: Math.floor(Date.now() / 1000),
+            fromMe: false,
+            type: 'text',
+            ack: 1
+          },
+          unreadCount: 0
+        }));
+        setConversations(transformedConversations);
       } else if (response && Array.isArray(response)) {
         // Caso a resposta seja diretamente um array
         setConversations(response);

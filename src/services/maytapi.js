@@ -35,9 +35,9 @@ maytapiClient.interceptors.response.use(
 // Serviços do Maytapi
 export const maytapiService = {
   // Listar conversas
-  getConversations: async (chatId = '556295625399@c.us', page = 0, count = 20) => {
+  getConversations: async (page = 0, count = 20) => {
     try {
-      const response = await maytapiClient.get(`/getConversations/${chatId}`, {
+      const response = await maytapiClient.get('/getConversations', {
         params: { page, count }
       });
       return response.data;
