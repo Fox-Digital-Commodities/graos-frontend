@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import FileUpload from './components/FileUpload';
 import CardsList from './components/CardsList';
 import SpreadsheetGenerator from './components/SpreadsheetGenerator';
+import ChatManager from './components/ChatManager';
 import './App.css';
 
 function App() {
@@ -26,6 +27,10 @@ function App() {
 
       <TabsContent value="spreadsheets" className="space-y-6">
         <SpreadsheetGenerator />
+      </TabsContent>
+
+      <TabsContent value="chat" className="space-y-6">
+        <ChatManager />
       </TabsContent>
     </Layout>
   );
