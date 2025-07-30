@@ -114,6 +114,22 @@ const ChatWindow = ({ conversation, onBack }) => {
       const response = await maytapiService.getConversationMessages(conversation.id);
       
       if (response.success && response.data?.messages) {
+        console.log('=== DEBUG MENSAGENS DA API ===');
+        console.log('Total de mensagens:', response.data.messages.length);
+        
+        // Log das primeiras 5 mensagens para debug
+        response.data.messages.slice(0, 5).forEach((msg, index) => {
+          console.log(`Mensagem ${index}:`, {
+            text: msg.message?.text,
+            type: msg.message?.type,
+            mediaUrl: msg.message?.mediaUrl,
+            url: msg.message?.url,
+            mime: msg.message?.mime,
+            filename: msg.message?.filename,
+            detectedType: maytapiUtils.getMessageType(msg.message)
+          });
+        });
+        
         const transformedMessages = response.data.messages.map(msg => ({
           id: msg.message?.id || `msg_${Date.now()}_${Math.random()}`,
           message: msg.message?.text || '',
@@ -128,6 +144,27 @@ const ChatWindow = ({ conversation, onBack }) => {
           mime: msg.message?.mime,
           duration: msg.message?.duration
         }));
+        
+        console.log('Mensagens transformadas:', transformedMessages.slice(0, 3));
+        
+        // Salvar no window para debug (corrigido)
+        if (typeof window !== 'undefined') {
+          window.lastTransformedMessages = transformedMessages;
+          console.log('Mensagens salvas no window:', transformedMessages.length);
+        }
+        
+        // Verificar se há mensagens com mídia
+        const mediaMessages = transformedMessages.filter(msg => 
+          msg.type !== 'Texto' || msg.url || msg.mediaUrl || msg.filename
+        );
+        console.log('Mensagens com mídia encontradas:', mediaMessages.length);
+        if (mediaMessages.length > 0) {
+          console.log('Exemplos de mensagens com mídia:', mediaMessages.slice(0, 3));
+        }
+        
+        // Verificar tipos únicos
+        const types = [...new Set(transformedMessages.map(msg => msg.type))];
+        console.log('Tipos de mensagem únicos:', types);
         
         setMessages(transformedMessages);
       } else {
@@ -228,6 +265,7 @@ const ChatWindow = ({ conversation, onBack }) => {
   const renderMessageContent = (message) => {
     switch (message.type) {
       case 'image':
+      case 'Imagem':
         return (
           <ImageViewer 
             imageData={message} 
@@ -236,6 +274,7 @@ const ChatWindow = ({ conversation, onBack }) => {
         );
       
       case 'document':
+      case 'Documento':
         return (
           <div className="flex items-center space-x-2 p-2 bg-gray-100 rounded-lg">
             <FileText className="w-4 h-4 text-gray-600" />
@@ -257,6 +296,7 @@ const ChatWindow = ({ conversation, onBack }) => {
       
       case 'audio':
       case 'ptt':
+      case 'Áudio':
         return (
           <AudioPlayer 
             audioData={message} 
