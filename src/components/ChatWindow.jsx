@@ -109,10 +109,31 @@ const ChatWindow = ({ conversation, onBack }) => {
     
     try {
       setLoading(true);
-      setError(null);      // Sempre usar mensagens de teste para demonstração
-      console.log('Usando mensagens de teste com áudio e imagem');
-      setMessages(getMockMessages(conversation?.id || 'test'));
-      setLoading(false);
+      setError(null);
+      
+      const response = await maytapiService.getConversationMessages(conversation.id);
+      
+      if (response.success && response.data?.messages) {
+        const transformedMessages = response.data.messages.map(msg => ({
+          id: msg.message?.id || `msg_${Date.now()}_${Math.random()}`,
+          message: msg.message?.text || '',
+          timestamp: msg.timestamp,
+          fromMe: msg.fromMe,
+          type: maytapiUtils.getMessageType(msg.message),
+          ack: msg.fromMe ? 3 : 2,
+          mediaUrl: msg.message?.mediaUrl,
+          caption: msg.message?.caption,
+          filename: msg.message?.filename,
+          url: msg.message?.url,
+          mime: msg.message?.mime,
+          duration: msg.message?.duration
+        }));
+        
+        setMessages(transformedMessages);
+      } else {
+        console.log('Usando mensagens de teste como fallback');
+        setMessages(getMockMessages(conversation.id));
+      }
       
     } catch (err) {
       console.error('Erro ao carregar mensagens:', err);
