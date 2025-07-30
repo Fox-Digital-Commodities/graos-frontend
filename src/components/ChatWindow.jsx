@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { maytapiService, maytapiUtils } from '../services/maytapi';
+import AudioPlayer from './AudioPlayer';
 
 const ChatWindow = ({ conversation, onBack }) => {
   const [messages, setMessages] = useState([]);
@@ -76,6 +77,17 @@ const ChatWindow = ({ conversation, onBack }) => {
       fromMe: false,
       type: 'text',
       ack: 2
+    },
+    {
+      id: 'msg6',
+      caption: '',
+      filename: 'audio_message.oga',
+      mime: 'audio/ogg; codecs=opus',
+      type: 'ptt',
+      url: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+      timestamp: Math.floor(Date.now() / 1000) - 3100,
+      fromMe: true,
+      ack: 3
     }
   ];
 
@@ -238,14 +250,12 @@ const ChatWindow = ({ conversation, onBack }) => {
         );
       
       case 'audio':
+      case 'ptt':
         return (
-          <div className="flex items-center space-x-2 p-2 bg-gray-100 rounded-lg">
-            <Play className="w-4 h-4 text-gray-600" />
-            <span className="text-sm">Mensagem de áudio</span>
-            {message.duration && (
-              <span className="text-xs text-gray-500">{message.duration}s</span>
-            )}
-          </div>
+          <AudioPlayer 
+            audioData={message} 
+            isFromMe={message.fromMe}
+          />
         );
       
       case 'location':

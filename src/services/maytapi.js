@@ -200,6 +200,7 @@ export const maytapiUtils = {
     if (message.type === 'image') return 'Imagem';
     if (message.type === 'document') return 'Documento';
     if (message.type === 'audio') return 'Áudio';
+    if (message.type === 'ptt') return 'Áudio';
     if (message.type === 'video') return 'Vídeo';
     if (message.type === 'sticker') return 'Sticker';
     if (message.type === 'location') return 'Localização';
