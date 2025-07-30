@@ -60,6 +60,11 @@ export const maytapiService = {
     }
   },
 
+  // Alias para getMessages (compatibilidade)
+  getConversationMessages: async (chatId, page = 0, count = 50) => {
+    return maytapiService.getMessages(chatId, page, count);
+  },
+
   // Enviar mensagem
   sendMessage: async (chatId, message, type = 'text') => {
     try {
