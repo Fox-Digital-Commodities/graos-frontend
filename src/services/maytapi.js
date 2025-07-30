@@ -163,9 +163,14 @@ export const maytapiUtils = {
     if (contact.pushname) return contact.pushname;
     if (contact.notify) return contact.notify;
     
-    // Extrair número do ID
+    // Extrair número do ID e formatar para exibição
     const number = contact.id?.replace('@c.us', '') || '';
     if (number.length >= 10) {
+      // Formato brasileiro: +55 (11) 99999-9999
+      if (number.startsWith('55') && number.length === 13) {
+        return `+55 (${number.slice(2, 4)}) ${number.slice(4, 9)}-${number.slice(9)}`;
+      }
+      // Formato genérico para outros países
       return `+${number.slice(0, 2)} ${number.slice(2, 4)} ${number.slice(4, 9)}-${number.slice(9)}`;
     }
     

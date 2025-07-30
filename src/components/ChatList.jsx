@@ -263,34 +263,34 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
     return (
       <div
         key={conversation.id}
-        className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 ${
+        className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
           isSelected ? 'bg-blue-50 border-r-2 border-blue-500' : ''
         }`}
         onClick={() => onSelectChat(conversation)}
       >
-        <div className="flex items-start space-x-3">
+        <div className="flex items-center space-x-3">
           {/* Avatar */}
-          <Avatar className="w-12 h-12">
+          <Avatar className="w-10 h-10 flex-shrink-0">
             <AvatarImage src={contact.profilePicUrl} alt={contactName} />
-            <AvatarFallback className="bg-green-500 text-white">
+            <AvatarFallback className="bg-green-500 text-white text-sm">
               {maytapiUtils.getDefaultAvatar(contact)}
             </AvatarFallback>
           </Avatar>
 
           {/* Conteúdo da conversa */}
           <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-start mb-1">
-              <div className="flex items-center space-x-2">
-                <h3 className="font-semibold text-gray-900 truncate">
+            <div className="flex justify-between items-center mb-1">
+              <div className="flex items-center space-x-2 flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900 truncate text-sm">
                   {contactName}
                 </h3>
                 {isGroup && (
-                  <Users className="w-4 h-4 text-gray-500" />
+                  <Users className="w-3 h-3 text-gray-500 flex-shrink-0" />
                 )}
               </div>
               
               {lastMessage && (
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1 flex-shrink-0">
                   {renderMessageStatus(lastMessage)}
                   <span className="text-xs text-gray-500">
                     {maytapiUtils.formatMessageDate(lastMessage.timestamp)}
@@ -302,16 +302,16 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
             {/* Última mensagem */}
             {lastMessage && (
               <div className="flex justify-between items-center">
-                <p className="text-sm text-gray-600 truncate">
+                <p className="text-xs text-gray-600 truncate flex-1">
                   {lastMessage.fromMe && 'Você: '}
                   {lastMessage.type === 'text' 
-                    ? maytapiUtils.truncateMessage(lastMessage.message)
+                    ? maytapiUtils.truncateMessage(lastMessage.message, 40)
                     : maytapiUtils.getMessageType(lastMessage)
                   }
                 </p>
                 
                 {conversation.unreadCount > 0 && (
-                  <Badge variant="default" className="bg-green-500 text-white ml-2">
+                  <Badge variant="default" className="bg-green-500 text-white ml-2 text-xs px-1.5 py-0.5">
                     {conversation.unreadCount}
                   </Badge>
                 )}
@@ -343,8 +343,8 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
+    <Card className="h-[600px] flex flex-col">
+      <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex justify-between items-center">
           <div>
             <CardTitle className="flex items-center space-x-2">
@@ -381,7 +381,7 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
       </CardHeader>
 
       {error && (
-        <div className="px-6 pb-4">
+        <div className="px-6 pb-4 flex-shrink-0">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
@@ -391,7 +391,7 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
         </div>
       )}
 
-      <CardContent className="flex-1 p-0">
+      <CardContent className="flex-1 p-0 overflow-hidden">
         <ScrollArea 
           className="h-full" 
           ref={scrollAreaRef}
