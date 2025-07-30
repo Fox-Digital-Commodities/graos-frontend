@@ -90,11 +90,26 @@ const ChatWindow = ({ conversation, onBack }) => {
       
       console.log('Resposta das mensagens:', response); // Debug
       
-      if (response && response.success && Array.isArray(response.data)) {
-        setMessages(response.data.reverse()); // Reverter para ordem cronológica
+      if (response && response.success && response.data && Array.isArray(response.data.messages)) {
+        // Transformar mensagens da API para formato esperado
+        const transformedMessages = response.data.messages.map(msg => ({
+          id: msg.message.id || msg.message._serialized,
+          message: msg.message.text || msg.message.body || '',
+          timestamp: msg.timestamp,
+          fromMe: msg.fromMe,
+          type: msg.message.type || 'text',
+          ack: msg.ack || 1,
+          // Dados adicionais para diferentes tipos de mídia
+          mediaUrl: msg.message.mediaUrl,
+          caption: msg.message.caption,
+          filename: msg.message.filename,
+          filesize: msg.message.filesize,
+          duration: msg.message.duration
+        }));
+        setMessages(transformedMessages);
       } else if (response && Array.isArray(response)) {
         // Caso a resposta seja diretamente um array
-        setMessages(response.reverse());
+        setMessages(response);
       } else {
         console.warn('Formato de resposta inesperado, usando dados de teste:', response);
         setMessages(getMockMessages(conversation.id));

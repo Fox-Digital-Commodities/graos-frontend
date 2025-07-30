@@ -120,6 +120,9 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
           unreadCount: 0
         }));
         setConversations(transformedConversations);
+        
+        // Buscar última mensagem para cada conversa (opcional, pode ser lento)
+        // loadLastMessagesForConversations(transformedConversations);
       } else if (response && Array.isArray(response)) {
         // Caso a resposta seja diretamente um array
         setConversations(response);

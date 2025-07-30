@@ -50,7 +50,7 @@ export const maytapiService = {
   // Obter mensagens de uma conversa específica
   getMessages: async (chatId, page = 0, count = 50) => {
     try {
-      const response = await maytapiClient.get(`/getMessages/${chatId}`, {
+      const response = await maytapiClient.get(`/getConversations/${encodeURIComponent(chatId)}`, {
         params: { page, count }
       });
       return response.data;
