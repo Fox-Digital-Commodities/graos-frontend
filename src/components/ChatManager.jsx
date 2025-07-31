@@ -127,33 +127,6 @@ const ChatManager = () => {
           )}
         </div>
       </div>
-
-      {/* Informações da API */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-blue-800 text-sm">Informações da Integração</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-blue-700">
-                <strong>API:</strong> Maytapi WhatsApp Business
-              </p>
-              <p className="text-blue-700">
-                <strong>Status:</strong> Conectado e funcionando
-              </p>
-            </div>
-            <div>
-              <p className="text-blue-700">
-                <strong>Recursos:</strong> Envio/Recebimento de mensagens, Mídia, Grupos
-              </p>
-              <p className="text-blue-700">
-                <strong>Limite:</strong> Conforme plano da API
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
