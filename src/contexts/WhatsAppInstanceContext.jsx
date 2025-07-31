@@ -113,10 +113,13 @@ export const WhatsAppInstanceProvider = ({ children }) => {
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     const phoneId = currentInstance.phoneId;
     
+    // Remove barra inicial do endpoint se existir
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    
     if (includePhoneId && !endpoint.startsWith('/chatgpt/')) {
-      return `${baseUrl}/api/whatsapp/${phoneId}${endpoint}`;
+      return `${baseUrl}/api/whatsapp/${phoneId}/${cleanEndpoint}`;
     } else {
-      return `${baseUrl}/api${endpoint}`;
+      return `${baseUrl}/api/${cleanEndpoint}`;
     }
   };
 
