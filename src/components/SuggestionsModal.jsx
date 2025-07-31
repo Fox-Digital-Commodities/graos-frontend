@@ -20,6 +20,7 @@ const SuggestionsModal = ({
   messages = [], 
   selectedMessage = null,
   onSelectSuggestion, 
+  conversationId = null,
   contactInfo = null,
   businessContext = "empresa de logística e transporte de grãos"
 }) => {
@@ -37,6 +38,15 @@ const SuggestionsModal = ({
     apiVersion: null,
     generatedAt: null,
     transcriptionsProcessed: 0
+  });
+
+  // Estado para informações da thread
+  const [threadInfo, setThreadInfo] = useState({
+    threadId: null,
+    conversationThreadId: null,
+    isReused: false,
+    totalSuggestions: 0,
+    messagesAdded: 0
   });
 
   // Gerar sugestões quando o modal abrir
@@ -60,6 +70,13 @@ const SuggestionsModal = ({
         apiVersion: null,
         generatedAt: null,
         transcriptionsProcessed: 0
+      });
+      setThreadInfo({
+        threadId: null,
+        conversationThreadId: null,
+        isReused: false,
+        totalSuggestions: 0,
+        messagesAdded: 0
       });
     }
   }, [isOpen]);
@@ -116,9 +133,8 @@ const SuggestionsModal = ({
       const payload = {
         messages: formattedMessages,
         businessContext,
-        tone: 'profissional',
-        suggestionCount: 3,
         contactInfo,
+        conversationId,
         selectedMessage: {
           text: selectedMessage.message || selectedMessage.text || '',
           type: selectedMessage.type === 'Áudio' ? 'audio' : 
@@ -162,6 +178,15 @@ const SuggestionsModal = ({
         apiVersion: data.apiVersion || null,
         generatedAt: data.generatedAt || null,
         transcriptionsProcessed: data.transcriptionsProcessed || 0
+      });
+
+      // Capturar informações da thread
+      setThreadInfo({
+        threadId: data.threadInfo?.threadId || null,
+        conversationThreadId: data.threadInfo?.conversationThreadId || null,
+        isReused: data.threadInfo?.isReused || false,
+        totalSuggestions: data.threadInfo?.totalSuggestions || 0,
+        messagesAdded: data.threadInfo?.messagesAdded || 0
       });
 
     } catch (err) {
@@ -307,6 +332,37 @@ const SuggestionsModal = ({
                 </Badge>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Informações da Thread */}
+        {threadInfo.threadId && (
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+              <MessageCircle className="w-4 h-4" />
+              Thread da Conversa
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className={`text-xs bg-white ${threadInfo.isReused ? 'border-green-300 text-green-700' : 'border-blue-300'}`}>
+                {threadInfo.isReused ? '🔄 Reutilizada' : '✨ Nova'}
+              </Badge>
+              <Badge variant="outline" className="text-xs bg-white border-blue-300">
+                Sugestões: {threadInfo.totalSuggestions}
+              </Badge>
+              <Badge variant="outline" className="text-xs bg-white border-blue-300">
+                Mensagens: +{threadInfo.messagesAdded}
+              </Badge>
+              {conversationId && (
+                <Badge variant="outline" className="text-xs bg-white border-blue-300">
+                  ID: {conversationId.substring(0, 8)}...
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-blue-700 mt-2">
+              {threadInfo.isReused 
+                ? 'Thread reutilizada para manter contexto da conversa. Apenas mensagens novas foram adicionadas.'
+                : 'Nova thread criada para esta conversa. Todas as mensagens foram processadas.'}
+            </p>
           </div>
         )}
 

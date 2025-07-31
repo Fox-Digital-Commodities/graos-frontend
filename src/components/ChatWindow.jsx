@@ -506,6 +506,7 @@ const ChatWindow = ({ conversation, onBack }) => {
         messages={messages}
         selectedMessage={selectedMessage}
         onSelectSuggestion={handleSelectSuggestion}
+        conversationId={conversation?.id || conversation?.chatId || conversation?.phone}
         contactInfo={{
           name: conversation?.name || 'Contato',
           company: conversation?.isGroup ? 'Grupo' : undefined,
