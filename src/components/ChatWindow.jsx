@@ -153,8 +153,11 @@ const ChatWindow = ({ conversation, onBack }) => {
           caption: msg.message?.caption,
           filename: msg.message?.filename,
           url: msg.message?.url,
+          audioUrl: msg.message?.url, // Para compatibilidade com áudios
+          voiceUrl: msg.message?.url, // Para compatibilidade com voz
           mime: msg.message?.mime,
-          duration: msg.message?.duration
+          duration: msg.message?.duration,
+          audioDuration: msg.message?.duration // Para compatibilidade
         }));
         
         console.log('Mensagens transformadas:', transformedMessages.slice(0, 3));
@@ -264,10 +267,10 @@ const ChatWindow = ({ conversation, onBack }) => {
 
           // Verificar se é áudio/voz
           if (msg.type === 'audio' || msg.type === 'voice' || msg.type === 'ptt' || 
-              msg.mediaType === 'audio' || msg.audioUrl || msg.voiceUrl) {
+              msg.mediaType === 'audio' || msg.audioUrl || msg.voiceUrl || msg.url) {
             messageType = msg.transcription ? 'audio_transcribed' : 'audio';
             additionalFields = {
-              mediaUrl: msg.audioUrl || msg.voiceUrl || msg.mediaUrl,
+              mediaUrl: msg.audioUrl || msg.voiceUrl || msg.mediaUrl || msg.url,
               duration: msg.duration || msg.audioDuration || 0,
               ...(msg.transcription && {
                 transcription: {
@@ -283,14 +286,14 @@ const ChatWindow = ({ conversation, onBack }) => {
           else if (msg.type === 'image' || msg.mediaType === 'image' || msg.imageUrl) {
             messageType = 'image';
             additionalFields = {
-              mediaUrl: msg.imageUrl || msg.mediaUrl
+              mediaUrl: msg.imageUrl || msg.mediaUrl || msg.url
             };
           }
           // Verificar se é documento
           else if (msg.type === 'document' || msg.mediaType === 'document' || msg.documentUrl) {
             messageType = 'document';
             additionalFields = {
-              mediaUrl: msg.documentUrl || msg.mediaUrl
+              mediaUrl: msg.documentUrl || msg.mediaUrl || msg.url
             };
           }
 
@@ -304,6 +307,23 @@ const ChatWindow = ({ conversation, onBack }) => {
             ...additionalFields
           };
         });
+        
+        // Debug: verificar se mensagens de áudio têm mediaUrl
+        const audioMessages = recentMessages.filter(msg => 
+          msg.type === 'audio' || msg.type === 'audio_transcribed'
+        );
+        if (audioMessages.length > 0) {
+          console.log('=== DEBUG MENSAGENS DE ÁUDIO ===');
+          audioMessages.forEach((msg, index) => {
+            console.log(`Áudio ${index}:`, {
+              type: msg.type,
+              mediaUrl: msg.mediaUrl,
+              duration: msg.duration,
+              hasTranscription: !!msg.transcription
+            });
+          });
+        }
+        
         const requestData = {
           conversationId: conversation?.id || conversation?.chatId || conversation?.phone,
           selectedMessage: {
