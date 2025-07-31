@@ -22,13 +22,16 @@ import {
   MapPin,
   AlertCircle,
   MessageCircle,
-  Sparkles
+  Sparkles,
+  User,
+  UserCog
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { maytapiService, maytapiUtils } from '../services/maytapi';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
 import SuggestionsModal from './SuggestionsModal';
+import ContactModal from './ContactModal';
 
 const ChatWindow = ({ conversation, onBack }) => {
   const [messages, setMessages] = useState([]);
@@ -38,6 +41,7 @@ const ChatWindow = ({ conversation, onBack }) => {
   const [sending, setSending] = useState(false);
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [showContactModal, setShowContactModal] = useState(false);
   const scrollAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -431,6 +435,14 @@ const ChatWindow = ({ conversation, onBack }) => {
           </div>
           
           <div className="flex space-x-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setShowContactModal(true)}
+              title="Gerenciar contato"
+            >
+              <UserCog className="w-4 h-4" />
+            </Button>
             <Button variant="ghost" size="sm">
               <Phone className="w-4 h-4" />
             </Button>
@@ -513,6 +525,23 @@ const ChatWindow = ({ conversation, onBack }) => {
           relationship: 'cliente'
         }}
         businessContext="empresa de logística e transporte de grãos"
+      />
+
+      <ContactModal
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        contact={conversation?.contact || {
+          whatsappId: conversation?.id || conversation?.chatId,
+          phoneNumber: conversation?.phone,
+          displayName: conversation?.name,
+          pushName: conversation?.pushname,
+          profilePictureUrl: conversation?.contact?.profilePicUrl
+        }}
+        onContactUpdate={(updatedContact) => {
+          console.log('Contato atualizado:', updatedContact);
+          // Aqui você pode atualizar o estado da conversa se necessário
+        }}
+        defaultTab="view"
       />
     </Card>
   );
