@@ -42,6 +42,7 @@ const ChatWindow = ({ conversation, onBack }) => {
   const [error, setError] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [generatingSuggestion, setGeneratingSuggestion] = useState(false);
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -252,60 +253,57 @@ const ChatWindow = ({ conversation, onBack }) => {
     // Só permite clique em mensagens recebidas (não nossas)
     if (!message.fromMe) {
       setSelectedMessage(message);
+      setGeneratingSuggestion(true);
       
       // Gerar sugestão automaticamente
       try {
         // Preparar contexto da conversa (últimas 10 mensagens)
-        const recentMessages = messages
-          .slice(-10)
-          .map(msg => {
-            // Detectar tipo da mensagem baseado no conteúdo
-            let messageType = 'text';
-            let additionalFields = {};
+        const recentMessages = messages.slice(-10).map(msg => {
+          let messageType = 'text';
+          let additionalFields = {};
 
-            // Verificar se é mensagem de áudio
-            if (msg.type === 'audio' || msg.type === 'ptt' || msg.type === 'voice' || 
-                msg.mediaType === 'audio' || msg.audioUrl || msg.voiceUrl) {
-              messageType = msg.transcription ? 'audio_transcribed' : 'audio';
-              
-              additionalFields = {
-                mediaUrl: msg.audioUrl || msg.voiceUrl || msg.mediaUrl,
-                duration: msg.duration || msg.audioDuration,
-                ...(msg.transcription && {
-                  transcription: {
-                    original: msg.transcription,
-                    confidence: msg.transcriptionConfidence || 0.8,
-                    language: msg.transcriptionLanguage || 'pt-BR',
-                    duration: msg.duration || msg.audioDuration || 0
-                  }
-                })
-              };
-            }
-            // Verificar se é imagem
-            else if (msg.type === 'image' || msg.mediaType === 'image' || msg.imageUrl) {
-              messageType = 'image';
-              additionalFields = {
-                mediaUrl: msg.imageUrl || msg.mediaUrl
-              };
-            }
-            // Verificar se é documento
-            else if (msg.type === 'document' || msg.mediaType === 'document' || msg.documentUrl) {
-              messageType = 'document';
-              additionalFields = {
-                mediaUrl: msg.documentUrl || msg.mediaUrl
-              };
-            }
-
-            return {
-              text: msg.message || msg.text || msg.transcription || '',
-              type: messageType,
-              fromMe: msg.fromMe,
-              timestamp: msg.timestamp,
-              id: msg.id || msg.messageId,
-              ...additionalFields
+          // Verificar se é áudio/voz
+          if (msg.type === 'audio' || msg.type === 'voice' || msg.type === 'ptt' || 
+              msg.mediaType === 'audio' || msg.audioUrl || msg.voiceUrl) {
+            messageType = msg.transcription ? 'audio_transcribed' : 'audio';
+            additionalFields = {
+              mediaUrl: msg.audioUrl || msg.voiceUrl || msg.mediaUrl,
+              duration: msg.duration || msg.audioDuration || 0,
+              ...(msg.transcription && {
+                transcription: {
+                  original: msg.transcription,
+                  confidence: msg.transcriptionConfidence || 0.8,
+                  language: msg.transcriptionLanguage || 'pt-BR',
+                  duration: msg.duration || msg.audioDuration || 0
+                }
+              })
             };
-          });
+          }
+          // Verificar se é imagem
+          else if (msg.type === 'image' || msg.mediaType === 'image' || msg.imageUrl) {
+            messageType = 'image';
+            additionalFields = {
+              mediaUrl: msg.imageUrl || msg.mediaUrl
+            };
+          }
+          // Verificar se é documento
+          else if (msg.type === 'document' || msg.mediaType === 'document' || msg.documentUrl) {
+            messageType = 'document';
+            additionalFields = {
+              mediaUrl: msg.documentUrl || msg.mediaUrl
+            };
+          }
 
+          return {
+            text: msg.message || msg.text || msg.transcription || '',
+            type: messageType,
+            fromMe: msg.fromMe || false,
+            role: msg.fromMe ? 'assistant' : 'user',
+            timestamp: msg.timestamp || Date.now(),
+            id: msg.id || msg.messageId || `msg_${Date.now()}_${Math.random()}`,
+            ...additionalFields
+          };
+        });
         const requestData = {
           conversationId: conversation?.id || conversation?.chatId || conversation?.phone,
           selectedMessage: {
@@ -371,6 +369,8 @@ const ChatWindow = ({ conversation, onBack }) => {
         }
         
         alert(errorMessage);
+      } finally {
+        setGeneratingSuggestion(false);
       }
     }
   };
@@ -615,12 +615,28 @@ const ChatWindow = ({ conversation, onBack }) => {
 
       {/* Input de nova mensagem */}
       <div className="p-4 border-t flex-shrink-0">
+        {/* Indicador de loading para sugestões */}
+        {generatingSuggestion && (
+          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              <Sparkles className="w-4 h-4 text-blue-600" />
+              <span className="text-sm text-blue-700 font-medium">
+                Gerando sugestão inteligente...
+              </span>
+            </div>
+            <p className="text-xs text-blue-600 mt-1">
+              Aguarde enquanto o ChatGPT analisa a conversa
+            </p>
+          </div>
+        )}
+        
         <form onSubmit={handleSendMessage} className="flex items-end space-x-2">
           <Textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Digite uma mensagem..."
-            disabled={sending}
+            placeholder={generatingSuggestion ? "Aguarde a sugestão..." : "Digite uma mensagem..."}
+            disabled={sending || generatingSuggestion}
             className="flex-1 min-h-[60px] max-h-[120px] resize-none"
             rows={2}
             onKeyDown={(e) => {
@@ -632,7 +648,7 @@ const ChatWindow = ({ conversation, onBack }) => {
           />
           <Button 
             type="submit" 
-            disabled={!newMessage.trim() || sending}
+            disabled={!newMessage.trim() || sending || generatingSuggestion}
             className="h-[60px] px-4"
           >
             {sending ? (
