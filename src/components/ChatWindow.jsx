@@ -27,6 +27,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { maytapiService, maytapiUtils } from '../services/maytapi';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
+import ResponseSuggestions from './ResponseSuggestions';
 
 const ChatWindow = ({ conversation, onBack }) => {
   const [messages, setMessages] = useState([]);
@@ -229,6 +230,11 @@ const ChatWindow = ({ conversation, onBack }) => {
     } finally {
       setSending(false);
     }
+  };
+
+  // Função para usar sugestão de resposta
+  const handleSelectSuggestion = (suggestionText) => {
+    setNewMessage(suggestionText);
   };
 
   // Scroll para o final das mensagens
@@ -447,6 +453,22 @@ const ChatWindow = ({ conversation, onBack }) => {
           )}
         </ScrollArea>
       </CardContent>
+
+      {/* Sugestões de Resposta */}
+      <div className="border-t bg-gray-50">
+        <div className="p-3">
+          <ResponseSuggestions
+            messages={messages}
+            onSelectSuggestion={handleSelectSuggestion}
+            contactInfo={{
+              name: conversation?.name || 'Contato',
+              company: conversation?.isGroup ? 'Grupo' : undefined,
+              relationship: 'cliente'
+            }}
+            businessContext="empresa de logística e transporte de grãos"
+          />
+        </div>
+      </div>
 
       {/* Input de nova mensagem */}
       <div className="p-4 border-t flex-shrink-0">
