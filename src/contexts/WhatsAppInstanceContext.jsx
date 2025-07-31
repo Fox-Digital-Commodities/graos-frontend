@@ -108,37 +108,55 @@ export const WhatsAppInstanceProvider = ({ children }) => {
     return WHATSAPP_INSTANCES.find(instance => instance.phoneId === phoneId);
   };
 
-  // Função para obter URL da API baseada na instância atual
+// Função para obter URL da API baseada na instância atual
   const getApiUrl = (endpoint = '', includePhoneId = true) => {
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     const phoneId = currentInstance.phoneId;
-    
-    // Remove barra inicial do endpoint se existir
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-    
-    if (includePhoneId && !endpoint.startsWith('/chatgpt/')) {
-      return `${baseUrl}/whatsapp/${phoneId}/${cleanEndpoint}`;
-    } else {
-      return `${baseUrl}/${cleanEndpoint}`;
-    }
+
+    // Sanitizar endpoint (sem barra inicial ou final)
+    let cleanEndpoint = endpoint.trim();
+    if (cleanEndpoint.startsWith('/')) cleanEndpoint = cleanEndpoint.slice(1);
+    if (cleanEndpoint.endsWith('/')) cleanEndpoint = cleanEndpoint.slice(0, -1);
+
+    // Construir URL final
+    const url = includePhoneId && !cleanEndpoint.startsWith('chatgpt/')
+        ? `${baseUrl}/whatsapp/${phoneId}/${cleanEndpoint}`
+        : `${baseUrl}/${cleanEndpoint}`;
+
+    return url;
   };
 
-  // Função para fazer requisições com a instância atual
+// Função para fazer requisições com a instância atual
   const fetchWithInstance = async (endpoint, options = {}) => {
     const url = getApiUrl(endpoint);
+    const method = options.method?.toUpperCase() || 'GET';
+
     const defaultHeaders = {
       'Content-Type': 'application/json',
-      'X-WhatsApp-Instance': currentInstance.phoneId,
-      ...options.headers
+      ...options.headers,
     };
 
+    // Proteção contra envio de body em GET
+    const config = {
+      method,
+      headers: defaultHeaders,
+    };
+
+    if (method !== 'GET' && options.body) {
+      config.body = typeof options.body === 'string'
+          ? options.body
+          : JSON.stringify(options.body);
+    }
+
+    console.log('[fetchWithInstance] URL:', url);
+    if (config.body) console.log('[fetchWithInstance] Body:', config.body);
+
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers: defaultHeaders
-      });
+      const response = await fetch(url, config);
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[fetchWithInstance] Erro ${response.status}:`, errorText);
         throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
       }
 

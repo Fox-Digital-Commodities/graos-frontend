@@ -48,7 +48,8 @@ const InlineSuggestions = ({
         .map(msg => ({
           text: msg.message || msg.text || '',
           fromMe: msg.fromMe,
-          timestamp: msg.timestamp
+          timestamp: msg.timestamp,
+          type: msg.type,
         }));
 
       const requestData = {
@@ -57,7 +58,7 @@ const InlineSuggestions = ({
           text: selectedMessage.message || selectedMessage.text || '',
           timestamp: selectedMessage.timestamp
         },
-        conversationHistory: recentMessages,
+        messages: recentMessages,
         contactInfo: {
           name: contactInfo?.name || 'Contato',
           company: contactInfo?.company,
@@ -77,7 +78,7 @@ const InlineSuggestions = ({
 
       const data = await response.json();
       
-      if (data.success && data.suggestions) {
+      if (data.suggestions) {
         setSuggestions(data.suggestions);
       } else {
         throw new Error(data.message || 'Erro ao processar sugestões');
