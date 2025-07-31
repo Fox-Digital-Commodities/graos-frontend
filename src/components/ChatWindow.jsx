@@ -29,13 +29,14 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { maytapiService, maytapiUtils } from '../services/maytapi';
+import { useWhatsAppInstance } from '../contexts/WhatsAppInstanceContext';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
 import SuggestionsModal from './SuggestionsModal';
-import InlineSuggestions from './InlineSuggestions';
 import ContactModal from './ContactModal';
 
 const ChatWindow = ({ conversation, onBack }) => {
+  const { fetchWithInstance } = useWhatsAppInstance();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,7 +44,6 @@ const ChatWindow = ({ conversation, onBack }) => {
   const [sending, setSending] = useState(false);
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
-  const [showInlineSuggestions, setShowInlineSuggestions] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const scrollAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -248,20 +248,63 @@ const ChatWindow = ({ conversation, onBack }) => {
   };
 
   // Função para lidar com clique em mensagem (gerar sugestões)
-  const handleMessageClick = (message) => {
+  const handleMessageClick = async (message) => {
     // Só permite clique em mensagens recebidas (não nossas)
     if (!message.fromMe) {
       setSelectedMessage(message);
-      setShowInlineSuggestions(true);
-      // Fechar modal se estiver aberto
-      setShowSuggestionsModal(false);
-    }
-  };
+      
+      // Gerar sugestão automaticamente
+      try {
+        // Preparar contexto da conversa (últimas 10 mensagens)
+        const recentMessages = messages
+          .slice(-10)
+          .map(msg => ({
+            text: msg.message || msg.text || '',
+            fromMe: msg.fromMe,
+            timestamp: msg.timestamp
+          }));
 
-  // Função para fechar sugestões inline
-  const handleCloseInlineSuggestions = () => {
-    setShowInlineSuggestions(false);
-    setSelectedMessage(null);
+        const requestData = {
+          conversationId: conversation?.id || conversation?.chatId || conversation?.phone,
+          selectedMessage: {
+            text: message.message || message.text || '',
+            timestamp: message.timestamp
+          },
+          conversationHistory: recentMessages,
+          contactInfo: {
+            name: conversation?.name || 'Contato',
+            company: conversation?.isGroup ? 'Grupo' : undefined,
+            relationship: 'cliente'
+          },
+          businessContext: 'empresa de logística e transporte de grãos'
+        };
+
+        const response = await fetchWithInstance('/chatgpt/suggest-response', {
+          method: 'POST',
+          body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+          throw new Error('Erro ao gerar sugestões');
+        }
+
+        const data = await response.json();
+        
+        if (data.success && data.suggestions && data.suggestions.length > 0) {
+          // Pegar a primeira sugestão e preencher no textarea
+          const firstSuggestion = data.suggestions[0];
+          const suggestionText = typeof firstSuggestion === 'string' 
+            ? firstSuggestion 
+            : firstSuggestion.text || firstSuggestion;
+          
+          setNewMessage(suggestionText);
+        }
+
+      } catch (err) {
+        console.error('Erro ao gerar sugestão:', err);
+        // Em caso de erro, apenas seleciona a mensagem sem preencher
+      }
+    }
   };
 
   // Função para fechar modal de sugestões
@@ -501,25 +544,6 @@ const ChatWindow = ({ conversation, onBack }) => {
           )}
         </ScrollArea>
       </CardContent>
-
-      {/* Sugestões Inline */}
-      {showInlineSuggestions && selectedMessage && (
-        <div className="px-4 pb-2">
-          <InlineSuggestions
-            selectedMessage={selectedMessage}
-            messages={messages}
-            conversationId={conversation?.id || conversation?.chatId || conversation?.phone}
-            contactInfo={{
-              name: conversation?.name || 'Contato',
-              company: conversation?.isGroup ? 'Grupo' : undefined,
-              relationship: 'cliente'
-            }}
-            businessContext="empresa de logística e transporte de grãos"
-            onSelectSuggestion={handleSelectSuggestion}
-            onClose={handleCloseInlineSuggestions}
-          />
-        </div>
-      )}
 
       {/* Input de nova mensagem */}
       <div className="p-4 border-t flex-shrink-0">
