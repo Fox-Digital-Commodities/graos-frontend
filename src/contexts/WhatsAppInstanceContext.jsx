@@ -109,10 +109,15 @@ export const WhatsAppInstanceProvider = ({ children }) => {
   };
 
   // Função para obter URL da API baseada na instância atual
-  const getApiUrl = (endpoint = '') => {
+  const getApiUrl = (endpoint = '', includePhoneId = true) => {
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     const phoneId = currentInstance.phoneId;
-    return `${baseUrl}/api/whatsapp/${phoneId}${endpoint}`;
+    
+    if (includePhoneId && !endpoint.startsWith('/chatgpt/')) {
+      return `${baseUrl}/api/whatsapp/${phoneId}${endpoint}`;
+    } else {
+      return `${baseUrl}/api${endpoint}`;
+    }
   };
 
   // Função para fazer requisições com a instância atual

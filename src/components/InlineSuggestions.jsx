@@ -66,7 +66,7 @@ const InlineSuggestions = ({
         businessContext: businessContext || 'empresa de logística e transporte de grãos'
       };
 
-      const response = await fetchWithInstance('/chatgpt/generate-suggestion', {
+      const response = await fetchWithInstance('/chatgpt/suggest-response', {
         method: 'POST',
         body: JSON.stringify(requestData)
       });
