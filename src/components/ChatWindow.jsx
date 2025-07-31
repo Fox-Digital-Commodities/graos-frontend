@@ -31,6 +31,7 @@ import { maytapiService, maytapiUtils } from '../services/maytapi';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
 import SuggestionsModal from './SuggestionsModal';
+import InlineSuggestions from './InlineSuggestions';
 import ContactModal from './ContactModal';
 
 const ChatWindow = ({ conversation, onBack }) => {
@@ -41,6 +42,7 @@ const ChatWindow = ({ conversation, onBack }) => {
   const [sending, setSending] = useState(false);
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [showInlineSuggestions, setShowInlineSuggestions] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const scrollAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -249,8 +251,16 @@ const ChatWindow = ({ conversation, onBack }) => {
     // Só permite clique em mensagens recebidas (não nossas)
     if (!message.fromMe) {
       setSelectedMessage(message);
-      setShowSuggestionsModal(true);
+      setShowInlineSuggestions(true);
+      // Fechar modal se estiver aberto
+      setShowSuggestionsModal(false);
     }
+  };
+
+  // Função para fechar sugestões inline
+  const handleCloseInlineSuggestions = () => {
+    setShowInlineSuggestions(false);
+    setSelectedMessage(null);
   };
 
   // Função para fechar modal de sugestões
@@ -490,6 +500,25 @@ const ChatWindow = ({ conversation, onBack }) => {
           )}
         </ScrollArea>
       </CardContent>
+
+      {/* Sugestões Inline */}
+      {showInlineSuggestions && selectedMessage && (
+        <div className="px-4 pb-2">
+          <InlineSuggestions
+            selectedMessage={selectedMessage}
+            messages={messages}
+            conversationId={conversation?.id || conversation?.chatId || conversation?.phone}
+            contactInfo={{
+              name: conversation?.name || 'Contato',
+              company: conversation?.isGroup ? 'Grupo' : undefined,
+              relationship: 'cliente'
+            }}
+            businessContext="empresa de logística e transporte de grãos"
+            onSelectSuggestion={handleSelectSuggestion}
+            onClose={handleCloseInlineSuggestions}
+          />
+        </div>
+      )}
 
       {/* Input de nova mensagem */}
       <div className="p-4 border-t flex-shrink-0">
