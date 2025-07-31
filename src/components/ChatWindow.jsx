@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -522,19 +523,30 @@ const ChatWindow = ({ conversation, onBack }) => {
 
       {/* Input de nova mensagem */}
       <div className="p-4 border-t flex-shrink-0">
-        <form onSubmit={handleSendMessage} className="flex space-x-2">
-          <Input
+        <form onSubmit={handleSendMessage} className="flex items-end space-x-2">
+          <Textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Digite uma mensagem..."
             disabled={sending}
-            className="flex-1"
+            className="flex-1 min-h-[60px] max-h-[120px] resize-none"
+            rows={2}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage(e);
+              }
+            }}
           />
-          <Button type="submit" disabled={!newMessage.trim() || sending}>
+          <Button 
+            type="submit" 
+            disabled={!newMessage.trim() || sending}
+            className="h-[60px] px-4"
+          >
             {sending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             )}
           </Button>
         </form>
