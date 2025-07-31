@@ -28,6 +28,15 @@ const SuggestionsModal = ({
   const [error, setError] = useState(null);
   const [conversationAnalysis, setConversationAnalysis] = useState(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  
+  // Novos estados para API híbrida
+  const [apiInfo, setApiInfo] = useState({
+    model: null,
+    assistantId: null,
+    tokensUsed: 0,
+    apiVersion: null,
+    generatedAt: null
+  });
 
   // Gerar sugestões quando o modal abrir
   useEffect(() => {
@@ -35,6 +44,23 @@ const SuggestionsModal = ({
       generateSuggestions();
     }
   }, [isOpen, selectedMessage]);
+
+  // Limpar estados quando modal fechar
+  useEffect(() => {
+    if (!isOpen) {
+      setSuggestions([]);
+      setError(null);
+      setConversationAnalysis(null);
+      setCopiedIndex(null);
+      setApiInfo({
+        model: null,
+        assistantId: null,
+        tokensUsed: 0,
+        apiVersion: null,
+        generatedAt: null
+      });
+    }
+  }, [isOpen]);
 
   const generateSuggestions = async () => {
     if (!selectedMessage || messages.length === 0) return;
@@ -94,6 +120,15 @@ const SuggestionsModal = ({
 
       setSuggestions(data.suggestions || []);
       setConversationAnalysis(data.context);
+      
+      // Capturar informações da API híbrida
+      setApiInfo({
+        model: data.model || null,
+        assistantId: data.assistantId || null,
+        tokensUsed: data.tokensUsed || 0,
+        apiVersion: data.apiVersion || null,
+        generatedAt: data.generatedAt || null
+      });
 
     } catch (err) {
       console.error('Erro ao gerar sugestões:', err);
@@ -206,6 +241,37 @@ const SuggestionsModal = ({
               <Badge variant="outline" className="text-xs bg-white">
                 Urgência: {conversationAnalysis.urgency}
               </Badge>
+            </div>
+          </div>
+        )}
+
+        {/* Informações da API Híbrida */}
+        {apiInfo.model && (
+          <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+            <h4 className="font-medium text-green-900 mb-2 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Informações da Geração
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="text-xs bg-white border-green-300">
+                Modelo: {apiInfo.model}
+              </Badge>
+              <Badge variant="outline" className="text-xs bg-white border-green-300">
+                API: {apiInfo.apiVersion}
+              </Badge>
+              <Badge variant="outline" className="text-xs bg-white border-green-300">
+                Tokens: {apiInfo.tokensUsed}
+              </Badge>
+              {apiInfo.assistantId && (
+                <Badge variant="outline" className="text-xs bg-white border-green-300">
+                  Assistente: {apiInfo.assistantId.slice(-8)}
+                </Badge>
+              )}
+              {apiInfo.generatedAt && (
+                <Badge variant="outline" className="text-xs bg-white border-green-300">
+                  {new Date(apiInfo.generatedAt).toLocaleTimeString()}
+                </Badge>
+              )}
             </div>
           </div>
         )}
