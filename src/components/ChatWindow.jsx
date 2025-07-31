@@ -21,12 +21,14 @@ import {
   FileText,
   MapPin,
   AlertCircle,
-  MessageCircle
+  MessageCircle,
+  Sparkles
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { maytapiService, maytapiUtils } from '../services/maytapi';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
+import SuggestionsModal from './SuggestionsModal';
 
 const ChatWindow = ({ conversation, onBack }) => {
   const [messages, setMessages] = useState([]);
@@ -34,6 +36,8 @@ const ChatWindow = ({ conversation, onBack }) => {
   const [error, setError] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState(null);
   const scrollAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -231,6 +235,26 @@ const ChatWindow = ({ conversation, onBack }) => {
     }
   };
 
+  // Função para usar sugestão de resposta
+  const handleSelectSuggestion = (suggestionText) => {
+    setNewMessage(suggestionText);
+  };
+
+  // Função para lidar com clique em mensagem (gerar sugestões)
+  const handleMessageClick = (message) => {
+    // Só permite clique em mensagens recebidas (não nossas)
+    if (!message.fromMe) {
+      setSelectedMessage(message);
+      setShowSuggestionsModal(true);
+    }
+  };
+
+  // Função para fechar modal de sugestões
+  const handleCloseSuggestionsModal = () => {
+    setShowSuggestionsModal(false);
+    setSelectedMessage(null);
+  };
+
   // Scroll para o final das mensagens
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -321,6 +345,7 @@ const ChatWindow = ({ conversation, onBack }) => {
   const renderMessage = (message, index) => {
     const isFromMe = message.fromMe;
     const showAvatar = !isFromMe && (index === 0 || messages[index - 1]?.fromMe);
+    const isClickable = !isFromMe; // Só mensagens recebidas são clicáveis
     
     return (
       <div
@@ -339,21 +364,37 @@ const ChatWindow = ({ conversation, onBack }) => {
         {!isFromMe && !showAvatar && <div className="w-10" />}
         
         <div
-          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg transition-all duration-200 ${
             isFromMe
               ? 'bg-green-500 text-white'
               : 'bg-gray-200 text-gray-900'
+          } ${
+            isClickable 
+              ? 'cursor-pointer hover:bg-gray-300 hover:shadow-md transform hover:scale-[1.02]' 
+              : ''
           }`}
+          onClick={() => isClickable && handleMessageClick(message)}
+          title={isClickable ? 'Clique para gerar sugestões de resposta' : ''}
         >
           {renderMessageContent(message)}
           
-          <div className={`flex items-center justify-end space-x-1 mt-1 ${
+          <div className={`flex items-center justify-between mt-1 ${
             isFromMe ? 'text-green-100' : 'text-gray-500'
           }`}>
-            <span className="text-xs">
-              {maytapiUtils.formatMessageDate(message.timestamp)}
-            </span>
-            {renderMessageStatus(message)}
+            <div className="flex items-center space-x-1">
+              <span className="text-xs">
+                {maytapiUtils.formatMessageDate(message.timestamp)}
+              </span>
+              {renderMessageStatus(message)}
+            </div>
+            
+            {/* Indicador de clique para sugestões */}
+            {isClickable && (
+              <div className="flex items-center space-x-1 opacity-60 hover:opacity-100 transition-opacity">
+                <Sparkles className="w-3 h-3" />
+                <span className="text-xs">Sugestões</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -467,6 +508,21 @@ const ChatWindow = ({ conversation, onBack }) => {
           </Button>
         </form>
       </div>
+
+      {/* Modal de Sugestões */}
+      <SuggestionsModal
+        isOpen={showSuggestionsModal}
+        onClose={handleCloseSuggestionsModal}
+        messages={messages}
+        selectedMessage={selectedMessage}
+        onSelectSuggestion={handleSelectSuggestion}
+        contactInfo={{
+          name: conversation?.name || 'Contato',
+          company: conversation?.isGroup ? 'Grupo' : undefined,
+          relationship: 'cliente'
+        }}
+        businessContext="empresa de logística e transporte de grãos"
+      />
     </Card>
   );
 };
