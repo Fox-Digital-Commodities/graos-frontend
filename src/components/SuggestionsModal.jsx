@@ -57,6 +57,7 @@ const SuggestionsModal = ({
               msg.type === 'Imagem' ? 'image' : 
               msg.type === 'Documento' ? 'document' : 'text',
         fromMe: msg.fromMe,
+        role: msg.fromMe ? 'assistant' : 'user', // fromMe:true = assistant, fromMe:false = user
         timestamp: msg.timestamp
       }));
 
@@ -69,7 +70,8 @@ const SuggestionsModal = ({
         selectedMessage: {
           text: selectedMessage.message || selectedMessage.text || '',
           type: selectedMessage.type,
-          fromMe: selectedMessage.fromMe
+          fromMe: selectedMessage.fromMe,
+          role: selectedMessage.fromMe ? 'assistant' : 'user'
         }
       };
 
