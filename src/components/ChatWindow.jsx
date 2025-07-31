@@ -270,7 +270,7 @@ const ChatWindow = ({ conversation, onBack }) => {
             text: message.message || message.text || '',
             timestamp: message.timestamp
           },
-          conversationHistory: recentMessages,
+          messages: recentMessages, // Corrigido: era conversationHistory
           contactInfo: {
             name: conversation?.name || 'Contato',
             company: conversation?.isGroup ? 'Grupo' : undefined,
@@ -285,7 +285,8 @@ const ChatWindow = ({ conversation, onBack }) => {
         });
 
         if (!response.ok) {
-          throw new Error('Erro ao gerar sugestões');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`);
         }
 
         const data = await response.json();
@@ -298,11 +299,36 @@ const ChatWindow = ({ conversation, onBack }) => {
             : firstSuggestion.text || firstSuggestion;
           
           setNewMessage(suggestionText);
+          
+          // Mostrar alerta de sucesso
+          alert('✅ Sugestão gerada com sucesso!');
+        } else {
+          throw new Error('Nenhuma sugestão foi gerada');
         }
 
       } catch (err) {
         console.error('Erro ao gerar sugestão:', err);
-        // Em caso de erro, apenas seleciona a mensagem sem preencher
+        
+        // Mostrar alerta de erro específico
+        let errorMessage = 'Erro ao gerar sugestão';
+        
+        if (err.message.includes('400')) {
+          errorMessage = '❌ Erro de validação: Dados inválidos enviados para o servidor';
+        } else if (err.message.includes('401')) {
+          errorMessage = '❌ Erro de autenticação: Verifique suas credenciais';
+        } else if (err.message.includes('403')) {
+          errorMessage = '❌ Erro de permissão: Acesso negado ao serviço';
+        } else if (err.message.includes('404')) {
+          errorMessage = '❌ Erro: Serviço de sugestões não encontrado';
+        } else if (err.message.includes('500')) {
+          errorMessage = '❌ Erro interno do servidor: Tente novamente em alguns minutos';
+        } else if (err.message.includes('Network')) {
+          errorMessage = '❌ Erro de conexão: Verifique sua internet';
+        } else if (err.message) {
+          errorMessage = `❌ ${err.message}`;
+        }
+        
+        alert(errorMessage);
       }
     }
   };
