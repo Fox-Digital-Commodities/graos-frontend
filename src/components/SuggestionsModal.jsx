@@ -9,6 +9,7 @@ import {
   Send, 
   RefreshCw, 
   MessageSquare,
+  MessageCircle,
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
