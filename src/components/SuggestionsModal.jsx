@@ -35,7 +35,8 @@ const SuggestionsModal = ({
     assistantId: null,
     tokensUsed: 0,
     apiVersion: null,
-    generatedAt: null
+    generatedAt: null,
+    transcriptionsProcessed: 0
   });
 
   // Gerar sugestões quando o modal abrir
@@ -57,10 +58,28 @@ const SuggestionsModal = ({
         assistantId: null,
         tokensUsed: 0,
         apiVersion: null,
-        generatedAt: null
+        generatedAt: null,
+        transcriptionsProcessed: 0
       });
     }
   }, [isOpen]);
+
+  // Função para estimar duração do áudio se não estiver disponível
+  const estimateAudioDuration = (message) => {
+    // Se temos informações de duração, usar
+    if (message.duration) return message.duration;
+    
+    // Estimativa baseada no tamanho do texto (se for transcrição)
+    const text = message.message || message.text || '';
+    if (text && text.length > 10) {
+      // Aproximadamente 150 palavras por minuto = 2.5 palavras por segundo
+      const words = text.split(' ').length;
+      return Math.max(5, Math.min(30, words / 2.5)); // Entre 5 e 30 segundos
+    }
+    
+    // Valor padrão para áudios curtos
+    return 15; // 15 segundos como estimativa padrão
+  };
 
   const generateSuggestions = async () => {
     if (!selectedMessage || messages.length === 0) return;
@@ -80,11 +99,18 @@ const SuggestionsModal = ({
       const formattedMessages = contextMessages.slice(-10).map(msg => ({
         text: msg.message || msg.text || '',
         type: msg.type === 'Áudio' ? 'audio' : 
+              msg.type === 'ptt' ? 'ptt' :
+              msg.type === 'voice' ? 'voice' :
               msg.type === 'Imagem' ? 'image' : 
               msg.type === 'Documento' ? 'document' : 'text',
         fromMe: msg.fromMe,
         role: msg.fromMe ? 'assistant' : 'user', // fromMe:true = assistant, fromMe:false = user
-        timestamp: msg.timestamp
+        timestamp: msg.timestamp,
+        // Adicionar informações específicas de áudio
+        duration: msg.duration || (msg.type === 'Áudio' || msg.type === 'ptt' || msg.type === 'voice' ? 
+          estimateAudioDuration(msg) : undefined),
+        mediaUrl: msg.mediaUrl || msg.url || msg.media,
+        id: msg.id || msg._id
       }));
 
       const payload = {
@@ -95,9 +121,16 @@ const SuggestionsModal = ({
         contactInfo,
         selectedMessage: {
           text: selectedMessage.message || selectedMessage.text || '',
-          type: selectedMessage.type,
+          type: selectedMessage.type === 'Áudio' ? 'audio' : 
+                selectedMessage.type === 'ptt' ? 'ptt' :
+                selectedMessage.type === 'voice' ? 'voice' :
+                selectedMessage.type,
           fromMe: selectedMessage.fromMe,
-          role: selectedMessage.fromMe ? 'assistant' : 'user'
+          role: selectedMessage.fromMe ? 'assistant' : 'user',
+          duration: selectedMessage.duration || (selectedMessage.type === 'Áudio' || selectedMessage.type === 'ptt' || selectedMessage.type === 'voice' ? 
+            estimateAudioDuration(selectedMessage) : undefined),
+          mediaUrl: selectedMessage.mediaUrl || selectedMessage.url || selectedMessage.media,
+          id: selectedMessage.id || selectedMessage._id
         }
       };
 
@@ -127,7 +160,8 @@ const SuggestionsModal = ({
         assistantId: data.assistantId || null,
         tokensUsed: data.tokensUsed || 0,
         apiVersion: data.apiVersion || null,
-        generatedAt: data.generatedAt || null
+        generatedAt: data.generatedAt || null,
+        transcriptionsProcessed: data.transcriptionsProcessed || 0
       });
 
     } catch (err) {
@@ -273,6 +307,30 @@ const SuggestionsModal = ({
                 </Badge>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Informações sobre Transcrições */}
+        {apiInfo.transcriptionsProcessed > 0 && (
+          <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <h4 className="font-medium text-purple-900 mb-2 flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Transcrições Processadas
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="text-xs bg-white border-purple-300">
+                Áudios transcritos: {apiInfo.transcriptionsProcessed}
+              </Badge>
+              <Badge variant="outline" className="text-xs bg-white border-purple-300">
+                Whisper API
+              </Badge>
+              <Badge variant="outline" className="text-xs bg-white border-purple-300">
+                Português BR
+              </Badge>
+            </div>
+            <p className="text-xs text-purple-700 mt-2">
+              Áudios menores que 30 segundos foram automaticamente transcritos para melhorar a qualidade das sugestões.
+            </p>
           </div>
         )}
 
