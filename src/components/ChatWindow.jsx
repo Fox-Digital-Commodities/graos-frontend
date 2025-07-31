@@ -256,56 +256,52 @@ const ChatWindow = ({ conversation, onBack }) => {
       // Gerar sugestão automaticamente
       try {
         // Preparar contexto da conversa (últimas 10 mensagens)
-        const recentMessages = messages
-          .slice(-10)
-          .map(msg => {
-            // Detectar tipo da mensagem baseado no conteúdo
-            let messageType = 'text';
-            let additionalFields = {};
+        const recentMessages = messages.slice(-10).map(msg => {
+          let messageType = 'text';
+          let additionalFields = {};
 
-            // Verificar se é mensagem de áudio
-            if (msg.type === 'audio' || msg.type === 'ptt' || msg.type === 'voice' || 
-                msg.mediaType === 'audio' || msg.audioUrl || msg.voiceUrl) {
-              messageType = msg.transcription ? 'audio_transcribed' : 'audio';
-              
-              additionalFields = {
-                mediaUrl: msg.audioUrl || msg.voiceUrl || msg.mediaUrl,
-                duration: msg.duration || msg.audioDuration,
-                ...(msg.transcription && {
-                  transcription: {
-                    original: msg.transcription,
-                    confidence: msg.transcriptionConfidence || 0.8,
-                    language: msg.transcriptionLanguage || 'pt-BR',
-                    duration: msg.duration || msg.audioDuration || 0
-                  }
-                })
-              };
-            }
-            // Verificar se é imagem
-            else if (msg.type === 'image' || msg.mediaType === 'image' || msg.imageUrl) {
-              messageType = 'image';
-              additionalFields = {
-                mediaUrl: msg.imageUrl || msg.mediaUrl
-              };
-            }
-            // Verificar se é documento
-            else if (msg.type === 'document' || msg.mediaType === 'document' || msg.documentUrl) {
-              messageType = 'document';
-              additionalFields = {
-                mediaUrl: msg.documentUrl || msg.mediaUrl
-              };
-            }
-
-            return {
-              text: msg.message || msg.text || msg.transcription || '',
-              type: messageType,
-              fromMe: msg.fromMe,
-              timestamp: msg.timestamp,
-              id: msg.id || msg.messageId,
-              ...additionalFields
+          // Verificar se é áudio/voz
+          if (msg.type === 'audio' || msg.type === 'voice' || msg.type === 'ptt' || 
+              msg.mediaType === 'audio' || msg.audioUrl || msg.voiceUrl) {
+            messageType = msg.transcription ? 'audio_transcribed' : 'audio';
+            additionalFields = {
+              mediaUrl: msg.audioUrl || msg.voiceUrl || msg.mediaUrl,
+              duration: msg.duration || msg.audioDuration || 0,
+              ...(msg.transcription && {
+                transcription: {
+                  original: msg.transcription,
+                  confidence: msg.transcriptionConfidence || 0.8,
+                  language: msg.transcriptionLanguage || 'pt-BR',
+                  duration: msg.duration || msg.audioDuration || 0
+                }
+              })
             };
-          });
+          }
+          // Verificar se é imagem
+          else if (msg.type === 'image' || msg.mediaType === 'image' || msg.imageUrl) {
+            messageType = 'image';
+            additionalFields = {
+              mediaUrl: msg.imageUrl || msg.mediaUrl
+            };
+          }
+          // Verificar se é documento
+          else if (msg.type === 'document' || msg.mediaType === 'document' || msg.documentUrl) {
+            messageType = 'document';
+            additionalFields = {
+              mediaUrl: msg.documentUrl || msg.mediaUrl
+            };
+          }
 
+          return {
+            text: msg.message || msg.text || msg.transcription || '',
+            type: messageType,
+            fromMe: msg.fromMe || false,
+            role: msg.fromMe ? 'assistant' : 'user',
+            timestamp: msg.timestamp || Date.now(),
+            id: msg.id || msg.messageId || `msg_${Date.now()}_${Math.random()}`,
+            ...additionalFields
+          };
+        });
         const requestData = {
           conversationId: conversation?.id || conversation?.chatId || conversation?.phone,
           selectedMessage: {
