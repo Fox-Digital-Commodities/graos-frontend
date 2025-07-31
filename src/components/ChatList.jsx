@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,9 +19,11 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useWhatsAppInstance } from '../contexts/WhatsAppInstanceContext';
 import { maytapiService, maytapiUtils } from '../services/maytapi';
 
 const ChatList = ({ onSelectChat, selectedChatId }) => {
+  const { currentInstance, fetchWithInstance } = useWhatsAppInstance();
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

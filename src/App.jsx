@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
+import { WhatsAppInstanceProvider } from './contexts/WhatsAppInstanceContext';
 import Layout from './components/Layout';
 import FileUpload from './components/FileUpload';
 import CardsList from './components/CardsList';
@@ -16,23 +17,25 @@ function App() {
   };
 
   return (
-    <Layout>
-      <TabsContent value="upload" className="space-y-6">
-        <FileUpload onUploadComplete={handleUploadComplete} />
-      </TabsContent>
+    <WhatsAppInstanceProvider>
+      <Layout>
+        <TabsContent value="upload" className="space-y-6">
+          <FileUpload onUploadComplete={handleUploadComplete} />
+        </TabsContent>
 
-      <TabsContent value="cards" className="space-y-6">
-        <CardsList uploadedData={uploadedFiles} />
-      </TabsContent>
+        <TabsContent value="cards" className="space-y-6">
+          <CardsList uploadedData={uploadedFiles} />
+        </TabsContent>
 
-      <TabsContent value="spreadsheets" className="space-y-6">
-        <SpreadsheetGenerator />
-      </TabsContent>
+        <TabsContent value="spreadsheets" className="space-y-6">
+          <SpreadsheetGenerator />
+        </TabsContent>
 
-      <TabsContent value="chat" className="space-y-6">
-        <ChatManager />
-      </TabsContent>
-    </Layout>
+        <TabsContent value="chat" className="space-y-6">
+          <ChatManager />
+        </TabsContent>
+      </Layout>
+    </WhatsAppInstanceProvider>
   );
 }
 

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, FileText, Table, MessageCircle, Settings } from 'lucide-react';
+import { CompactWhatsAppInstanceSelector, WhatsAppInstanceStatus } from './WhatsAppInstanceSelector';
 
 export default function Layout({ children }) {
   const [activeTab, setActiveTab] = useState('upload');
@@ -23,6 +24,13 @@ export default function Layout({ children }) {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Mostrar seletor de instância apenas na aba de chat */}
+              {activeTab === 'chat' && (
+                <div className="flex items-center space-x-3">
+                  <WhatsAppInstanceStatus />
+                  <CompactWhatsAppInstanceSelector />
+                </div>
+              )}
               <Button variant="outline" size="sm">
                 <Settings className="w-4 h-4 mr-2" />
                 Configurações
