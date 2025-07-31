@@ -260,6 +260,7 @@ const ChatWindow = ({ conversation, onBack }) => {
           .slice(-10)
           .map(msg => ({
             text: msg.message || msg.text || '',
+            type: 'text', // Adicionar tipo da mensagem
             fromMe: msg.fromMe,
             timestamp: msg.timestamp
           }));
