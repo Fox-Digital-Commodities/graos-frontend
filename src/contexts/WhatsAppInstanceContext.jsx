@@ -117,9 +117,9 @@ export const WhatsAppInstanceProvider = ({ children }) => {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
     
     if (includePhoneId && !endpoint.startsWith('/chatgpt/')) {
-      return `${baseUrl}/api/whatsapp/${phoneId}/${cleanEndpoint}`;
+      return `${baseUrl}/whatsapp/${phoneId}/${cleanEndpoint}`;
     } else {
-      return `${baseUrl}/api/${cleanEndpoint}`;
+      return `${baseUrl}/${cleanEndpoint}`;
     }
   };
 
