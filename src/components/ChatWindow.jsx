@@ -240,6 +240,7 @@ const ChatWindow = ({ conversation, onBack }) => {
     setNewMessage(suggestionText);
   };
 
+<<<<<<< HEAD
   // Função para lidar com clique em mensagem (gerar sugestões)
   const handleMessageClick = (message) => {
     // Só permite clique em mensagens recebidas (não nossas)
@@ -255,6 +256,67 @@ const ChatWindow = ({ conversation, onBack }) => {
     setSelectedMessage(null);
   };
 
+=======
+  // Função para gerar sugestões baseadas em mensagem específica
+  const handleGenerateSuggestionsForMessage = async (clickedMessage) => {
+    try {
+      console.log('Gerando sugestões para mensagem específica:', clickedMessage);
+      
+      // Encontrar o índice da mensagem clicada
+      const messageIndex = messages.findIndex(msg => msg.id === clickedMessage.id);
+      
+      // Pegar mensagens até a mensagem clicada (contexto)
+      const contextMessages = messages.slice(0, messageIndex + 1);
+      
+      // Preparar dados para o ChatGPT
+      const requestData = {
+        messages: contextMessages.map(msg => ({
+          text: msg.message || '',
+          type: msg.type || 'text',
+          fromMe: msg.fromMe || false,
+          timestamp: msg.timestamp,
+          mediaUrl: msg.mediaUrl || msg.url || ''
+        })),
+        businessContext: "empresa de logística e transporte de grãos",
+        tone: "profissional",
+        suggestionCount: 3,
+        contactInfo: {
+          name: conversation?.name || 'Contato',
+          company: conversation?.isGroup ? 'Grupo' : undefined,
+          relationship: 'cliente'
+        }
+      };
+
+      console.log('Dados enviados para ChatGPT:', requestData);
+
+      // Chamar API do backend
+      const response = await fetch('http://localhost:3001/api/chatgpt/suggest-response', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Sugestões recebidas:', result);
+        
+        // Atualizar estado com as sugestões (você pode criar um estado para isso)
+        // Por enquanto, vamos mostrar no console
+        alert(`Sugestões geradas:\n${result.suggestions.map((s, i) => `${i+1}. ${s.text}`).join('\n')}`);
+      } else {
+        console.error('Erro ao gerar sugestões:', response.status);
+        alert('Erro ao gerar sugestões. Verifique o console.');
+      }
+
+    } catch (error) {
+      console.error('Erro ao gerar sugestões:', error);
+      alert('Erro ao conectar com o servidor.');
+    }
+  };
+
+>>>>>>> 9228e5aca730d2453bee36d604b6ae6f3acd0564
   // Scroll para o final das mensagens
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -350,7 +412,11 @@ const ChatWindow = ({ conversation, onBack }) => {
     return (
       <div
         key={message.id}
-        className={`flex ${isFromMe ? 'justify-end' : 'justify-start'} mb-4`}
+        className={`flex ${isFromMe ? 'justify-end' : 'justify-start'} mb-4 ${
+          !isFromMe ? 'cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors' : ''
+        }`}
+        onClick={() => !isFromMe && handleGenerateSuggestionsForMessage(message)}
+        title={!isFromMe ? "Clique para gerar sugestões de resposta" : ""}
       >
         {!isFromMe && showAvatar && (
           <Avatar className="w-8 h-8 mr-2">
@@ -488,6 +554,22 @@ const ChatWindow = ({ conversation, onBack }) => {
           )}
         </ScrollArea>
       </CardContent>
+
+      {/* Sugestões de Resposta */}
+      <div className="border-t bg-gray-50">
+        <div className="p-3">
+          <ResponseSuggestions
+            messages={messages}
+            onSelectSuggestion={handleSelectSuggestion}
+            contactInfo={{
+              name: conversation?.name || 'Contato',
+              company: conversation?.isGroup ? 'Grupo' : undefined,
+              relationship: 'cliente'
+            }}
+            businessContext="empresa de logística e transporte de grãos"
+          />
+        </div>
+      </div>
 
       {/* Input de nova mensagem */}
       <div className="p-4 border-t flex-shrink-0">
