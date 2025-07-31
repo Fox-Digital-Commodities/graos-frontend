@@ -177,13 +177,15 @@ const InlineSuggestions = ({
                 key={index}
                 className="p-3 bg-white rounded border hover:border-blue-300 transition-colors"
               >
-                <p className="text-sm text-gray-800 mb-2">{suggestion}</p>
+                <p className="text-sm text-gray-800 mb-2">
+                  {typeof suggestion === 'string' ? suggestion : suggestion.text || suggestion}
+                </p>
                 
                 <div className="flex justify-end space-x-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleCopySuggestion(suggestion)}
+                    onClick={() => handleCopySuggestion(typeof suggestion === 'string' ? suggestion : suggestion.text || suggestion)}
                     className="h-7 px-2 text-xs"
                   >
                     <Copy className="w-3 h-3 mr-1" />
@@ -191,7 +193,7 @@ const InlineSuggestions = ({
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => handleUseSuggestion(suggestion)}
+                    onClick={() => handleUseSuggestion(typeof suggestion === 'string' ? suggestion : suggestion.text || suggestion)}
                     className="h-7 px-2 text-xs bg-blue-600 hover:bg-blue-700"
                   >
                     <Send className="w-3 h-3 mr-1" />
