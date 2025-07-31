@@ -351,7 +351,7 @@ const ChatWindow = ({ conversation, onBack }) => {
 
         const data = await response.json();
         
-        if (data.success && data.suggestions && data.suggestions.length > 0) {
+        if (data.suggestions && data.suggestions.length > 0) {
           // Pegar a primeira sugestão e preencher no textarea
           const firstSuggestion = data.suggestions[0];
           const suggestionText = typeof firstSuggestion === 'string' 
