@@ -361,7 +361,7 @@ const ChatWindow = ({ conversation, onBack }) => {
           setNewMessage(suggestionText);
           
           // Mostrar alerta de sucesso
-          alert('✅ Sugestão gerada com sucesso!');
+          // alert('✅ Sugestão gerada com sucesso!');
         } else {
           throw new Error('Nenhuma sugestão foi gerada');
         }
