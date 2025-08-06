@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Alert, AlertDescription } from './ui/alert';
 import { Loader2, Type, Sparkles, CheckCircle } from 'lucide-react';
-import { processingService, cardsService } from '../services/api';
+import { processingService } from '../services/api';
 import ResultsTable from './ResultsTable';
 
 const TextInput = () => {
@@ -56,9 +56,10 @@ const TextInput = () => {
     setError('');
     
     try {
-      const response = await cardsService.create(confirmedData);
+      // TODO: Implementar salvamento no sistema
+      console.log('Dados confirmados:', confirmedData);
       
-      setSuccess(`✅ Dados salvos com sucesso! Card ID: ${response.id}`);
+      setSuccess(`✅ Dados processados com sucesso!`);
       setResults(null);
       setText('');
       

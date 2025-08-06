@@ -38,6 +38,35 @@ api.interceptors.response.use(
   }
 );
 
+// Serviços de Processamento (para compatibilidade)
+export const processingService = {
+  analyzeText: async (text) => {
+    // TODO: Implementar análise de texto
+    return { jobId: 'mock-job-' + Date.now() };
+  },
+
+  analyzeFile: async (fileId) => {
+    // TODO: Implementar análise de arquivo
+    return { jobId: 'mock-job-' + Date.now() };
+  },
+
+  pollJobStatus: async (jobId) => {
+    // TODO: Implementar polling de status
+    return { 
+      status: 'completed',
+      result: { message: 'Processamento mock concluído' }
+    };
+  },
+};
+
+// Serviços de Upload (para compatibilidade)
+export const uploadService = {
+  upload: async (file) => {
+    // TODO: Implementar upload
+    return { id: 'mock-file-' + Date.now() };
+  },
+};
+
 // Serviços de Sincronização
 export const syncService = {
   // Sincronizar contatos do Maytapi
