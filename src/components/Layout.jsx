@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Table, MessageCircle, Settings } from 'lucide-react';
+import { Upload, FileText, Table, MessageCircle, Settings, Kanban } from 'lucide-react';
 import { CompactWhatsAppInstanceSelector, WhatsAppInstanceStatus } from './WhatsAppInstanceSelector';
 
 export default function Layout({ children }) {
@@ -24,8 +24,8 @@ export default function Layout({ children }) {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              {/* Mostrar seletor de instância apenas na aba de chat */}
-              {activeTab === 'chat' && (
+              {/* Mostrar seletor de instância nas abas de chat e kanban */}
+              {(activeTab === 'chat' || activeTab === 'kanban') && (
                 <div className="flex items-center space-x-3">
                   <WhatsAppInstanceStatus />
                   <CompactWhatsAppInstanceSelector />
@@ -43,7 +43,7 @@ export default function Layout({ children }) {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8">
+          <TabsList className="grid w-full grid-cols-5 mb-8">
             <TabsTrigger value="upload" className="flex items-center space-x-2">
               <Upload className="w-4 h-4" />
               <span>Upload</span>
@@ -59,6 +59,10 @@ export default function Layout({ children }) {
             <TabsTrigger value="chat" className="flex items-center space-x-2">
               <MessageCircle className="w-4 h-4" />
               <span>Chat</span>
+            </TabsTrigger>
+            <TabsTrigger value="kanban" className="flex items-center space-x-2">
+              <Kanban className="w-4 h-4" />
+              <span>Kanban</span>
             </TabsTrigger>
           </TabsList>
 

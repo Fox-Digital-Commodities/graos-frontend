@@ -6,6 +6,7 @@ import FileUpload from './components/FileUpload';
 import CardsList from './components/CardsList';
 import SpreadsheetGenerator from './components/SpreadsheetGenerator';
 import ChatManager from './components/ChatManager';
+import KanbanBoard from './components/kanban/KanbanBoard';
 import './App.css';
 
 function App() {
@@ -33,6 +34,10 @@ function App() {
 
         <TabsContent value="chat" className="space-y-6">
           <ChatManager />
+        </TabsContent>
+
+        <TabsContent value="kanban" className="space-y-6">
+          <KanbanBoard boardId="default" />
         </TabsContent>
       </Layout>
     </WhatsAppInstanceProvider>
