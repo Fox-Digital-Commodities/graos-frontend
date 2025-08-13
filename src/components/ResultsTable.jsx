@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
+import { Input } from './ui/input';
 import { 
   CheckCircle, 
   XCircle, 
@@ -12,7 +13,10 @@ import {
   Package,
   Save,
   Edit3,
-  Trash2
+  Trash2,
+  User,
+  Hash,
+  MapPinned
 } from 'lucide-react';
 
 const ResultsTable = ({ 
@@ -24,6 +28,10 @@ const ResultsTable = ({
 }) => {
   const [editingItem, setEditingItem] = useState(null);
   const [editedData, setEditedData] = useState({});
+  const [editingIds, setEditingIds] = useState(false);
+  const [metaData, setMetaData] = useState({
+    idFoxUser: results?.idFoxUser || ''
+  });
 
   if (!results) {
     return null;
@@ -44,12 +52,26 @@ const ResultsTable = ({
     // Aplicar edições aos dados originais
     const updatedResults = { ...results };
     
+    // Aplicar edições de IDs se houver
+    if (editingIds) {
+      updatedResults.idFoxUser = metaData.idFoxUser;
+      setEditingIds(false);
+    }
+    
+    // Aplicar edições de preços e produtos
     Object.keys(editedData).forEach(key => {
       const [produtoIndex, precoIndex] = key.split('-').map(Number);
       const edits = editedData[key];
       
       Object.keys(edits).forEach(field => {
-        if (updatedResults.produtos[produtoIndex]?.precos[precoIndex]) {
+        // Verificar se é o campo idFoxAddresses (que pertence ao produto)
+        if (field === 'idFoxAddresses') {
+          if (updatedResults.produtos[produtoIndex]) {
+            updatedResults.produtos[produtoIndex][field] = edits[field];
+          }
+        }
+        // Caso contrário, aplicar ao preço específico
+        else if (updatedResults.produtos[produtoIndex]?.precos[precoIndex]) {
           updatedResults.produtos[produtoIndex].precos[precoIndex][field] = edits[field];
         }
       });
@@ -92,6 +114,77 @@ const ResultsTable = ({
 
   return (
     <div className="space-y-6">
+      {/* Card para IDs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Informações de Identificação
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">ID Fox User</span>
+            </div>
+            {editingIds ? (
+              <Input 
+                placeholder="ID do Usuário (opcional)" 
+                value={metaData.idFoxUser} 
+                onChange={(e) => setMetaData(prev => ({ ...prev, idFoxUser: e.target.value }))}
+                className="text-sm"
+              />
+            ) : (
+              <div className="flex items-center justify-between">
+                <span className="text-sm">{results.idFoxUser || 'Não definido'}</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end mt-4">
+            {!editingIds ? (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => setEditingIds(true)}
+                className="flex items-center gap-2"
+              >
+                <Edit3 className="h-3 w-3" />
+                Editar IDs
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => {
+                    setEditingIds(false);
+                    setMetaData({
+                      idFoxUser: results?.idFoxUser || '',
+                    });
+                  }}
+                >
+                  <XCircle className="h-3 w-3 mr-1" />
+                  Cancelar
+                </Button>
+                <Button 
+                  size="sm" 
+                  onClick={() => {
+                    const updatedResults = { ...results, ...metaData };
+                    onEdit && onEdit(updatedResults);
+                    setEditingIds(false);
+                  }}
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Salvar IDs
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Cabeçalho do Card */}
       <Card>
         <CardHeader>
@@ -126,24 +219,46 @@ const ResultsTable = ({
       {results.produtos?.map((produto, produtoIndex) => (
         <Card key={produtoIndex}>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                {produto.nome}
-                {produto.safra && (
-                  <Badge variant="outline">{produto.safra}</Badge>
-                )}
-              </CardTitle>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  {produto.nome}
+                  {produto.safra && (
+                    <Badge variant="outline">{produto.safra}</Badge>
+                  )}
+                </CardTitle>
+                
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {produto.modalidade && (
+                    <Badge variant="secondary">{produto.modalidade}</Badge>
+                  )}
+                  {produto.uf && produto.municipio && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {produto.municipio} - {produto.uf}
+                    </div>
+                  )}
+                </div>
+              </div>
               
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {produto.modalidade && (
-                  <Badge variant="secondary">{produto.modalidade}</Badge>
-                )}
-                {produto.uf && produto.municipio && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {produto.municipio} - {produto.uf}
-                  </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-1">
+                  <MapPinned className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">ID Fox Addresses:</span>
+                </div>
+                
+                {editingItem === `${produtoIndex}` ? (
+                  <Input 
+                    placeholder="ID Fox Addresses (opcional)" 
+                    value={getEditedValue(produtoIndex, 0, 'idFoxAddresses', produto.idFoxAddresses) || ''}
+                    onChange={(e) => handleEdit(produtoIndex, 0, 'idFoxAddresses', e.target.value)}
+                    className="max-w-xs h-7 text-xs"
+                  />
+                ) : (
+                  <span className="text-xs font-mono">
+                    {produto.idFoxAddresses || 'Não definido'}
+                  </span>
                 )}
               </div>
             </div>

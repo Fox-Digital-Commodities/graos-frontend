@@ -76,6 +76,7 @@ const TextInput = () => {
   };
 
   const handleEdit = (editedData) => {
+    // Preservar os IDs personalizados que o usuário possa ter adicionado
     setResults(editedData);
   };
 

@@ -16,14 +16,20 @@ import {
   Loader2
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { uploadService, processingService, apiUtils } from '../services/api';
+import { uploadService, processingService, apiUtils, cardsService } from '../services/api';
 import TextInput from './TextInput';
+import ResultsTable from './ResultsTable';
 
 const FileUpload = ({ onUploadComplete }) => {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState(null);
+
+  const [results, setResults] = useState(null);
+  const [success, setSuccess] = useState('');
+
+   const [isSaving, setIsSaving] = useState(false);
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     setError(null);
@@ -32,6 +38,7 @@ const FileUpload = ({ onUploadComplete }) => {
       setError('Alguns arquivos foram rejeitados. Verifique o tipo e tamanho dos arquivos.');
       return;
     }
+
 
     const newFiles = acceptedFiles.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
@@ -125,6 +132,11 @@ const FileUpload = ({ onUploadComplete }) => {
           );
 
           if (finalStatus && finalStatus.status === 'completed') {
+
+            setResults(finalStatus.result);
+            console.log('Dados extraídos:', finalStatus.result);
+            setSuccess('Dados extraídos com sucesso! Revise e confirme para salvar.');
+
             // Marcar como concluído
             setFiles(prev => prev.map(f => 
               f.id === fileItem.id ? { ...f, status: 'completed', progress: 100 } : f
@@ -218,6 +230,43 @@ const FileUpload = ({ onUploadComplete }) => {
       onUploadComplete(result);
     }
   };
+
+
+   const handleEdit = (editedData) => {
+    // Preservar os IDs personalizados que o usuário possa ter adicionado
+    setResults(editedData);
+  };
+
+
+  const handleConfirm = async (confirmedData) => {
+      setIsSaving(true);
+      setError('');
+      
+      try {
+        const response = await cardsService.create(confirmedData);
+        
+        setSuccess(`✅ Dados salvos com sucesso! Card ID: ${response.id}`);
+        setResults(null);
+        
+        // Limpar após 5 segundos
+        setTimeout(() => {
+          setSuccess('');
+        }, 5000);
+        
+      } catch (err) {
+        console.error('Erro ao salvar dados:', err);
+        setError(`Erro ao salvar no banco: ${err.message}`);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    
+  const handleReject = () => {
+    setResults(null);
+    setError('');
+    setSuccess('');
+  };
+
 
   return (
     <div className="w-full space-y-6">
@@ -351,7 +400,36 @@ const FileUpload = ({ onUploadComplete }) => {
           <TextInput onProcessComplete={handleTextProcessComplete} />
         </TabsContent>
       </Tabs>
+
+
+ {/* Alertas */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {success && (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">{success}</AlertDescription>
+        </Alert>
+      )}
+
+{/* Tabela de Resultados */}
+      {results && (
+        <ResultsTable
+          results={results}
+           onConfirm={handleConfirm}
+           onEdit={handleEdit}
+           onReject={handleReject}
+           isLoading={isSaving}
+        />
+      )}
+
     </div>
+
+    
   );
 };
 

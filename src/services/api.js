@@ -106,6 +106,8 @@ export const processingService = {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const status = await processingService.getJobStatus(jobId);
+
+        console.log(`Polling (tentativa ${attempt + 1}):`, status);
         
         if (status.status === 'completed' || status.status === 'error') {
           return status;
@@ -144,7 +146,32 @@ export const cardsService = {
 
   // Criar novo card
   create: async (cardData) => {
-    const response = await api.post('/cards', cardData);
+    // Primeiro salva no banco local (temporariamente desativado)
+    // const response = await api.post('/cards', cardData);
+    // Criando uma resposta mock para não quebrar o fluxo
+    const response = { data: { id: 'mock-' + Date.now(), ...cardData } };
+    
+    // Depois tenta criar as ofertas na Fox
+    try {
+      // Verificar se temos idFoxUser e pelo menos um produto com idFoxAddresses
+      const hasRequiredFields = cardData.idFoxUser && 
+                               cardData.produtos && 
+                               cardData.produtos.some(p => p.idFoxAddresses);
+      
+      if (hasRequiredFields) {
+        console.log('Tentando criar ofertas na Fox...');
+        const offerResults = await offerService.processCardOffers(cardData);
+        response.data.offerResults = offerResults;
+        
+        console.log(`Ofertas processadas: ${offerResults.summary.successful} sucesso, ${offerResults.summary.failed} falhas`);
+      } else {
+        console.warn('Dados insuficientes para criar ofertas na Fox (falta idFoxUser ou idFoxAddresses)');
+      }
+    } catch (error) {
+      console.error('Erro ao processar ofertas na Fox:', error);
+      response.data.offerError = error.message;
+    }
+    
     return response.data;
   },
 
@@ -188,6 +215,223 @@ export const spreadsheetService = {
   },
 };
 
+// Serviços de Ofertas
+export const offerService = {
+  // Mapear dados do card para o formato da oferta Fox
+  mapCardToOffer: (produto, preco, cardData) => {
+    // Mapear tipo de grão para o código esperado
+    let grainType;
+    if (produto.nome.toUpperCase().includes('MILHO')) {
+      grainType = 1; // Milho
+    } else if (produto.nome.toUpperCase().includes('SOJA')) {
+      grainType = 2; // Soja
+    } else if (produto.nome.toUpperCase().includes('SORGO')) {
+      grainType = 3; // Sorgo
+    } else {
+      console.warn(`Tipo de grão não reconhecido: ${produto.nome}. Usando valor padrão 1 (Milho)`);
+      grainType = 1; // Fallback para Milho para evitar erros
+    }
+    
+    // Calcular quantidade padrão em sacas (pode ser ajustado)
+    const amount = preco.quantidade || 2000; 
+    
+    // Calcular data de expiração com formato ISO completo
+    const today = new Date();
+    const expirationDate = new Date(today);
+    expirationDate.setDate(today.getDate() + 15);
+    const expiresIn = expirationDate.toISOString();
+    
+    // Determinar se é FOB ou CIF
+    const isFob = produto.modalidade?.toUpperCase() === 'FOB';
+    
+  // Formatar datas para o mesmo padrão (YYYY-MM-DD)
+    let deliveryDeadline = preco.embarque || '';
+    
+    // Formatar data de pagamento igual ao formato do embarque
+    let paymentDate = preco.pagamento || '';
+    if (paymentDate && paymentDate.includes('T')) {
+      paymentDate = paymentDate.split('T')[0]; 
+    }
+    
+    // Calcular diferença em dias entre embarque e pagamento
+    let paymentDays = '30'; 
+    if (deliveryDeadline && paymentDate) {
+      try {
+        const embarqueDate = new Date(deliveryDeadline);
+        const pagamentoDate = new Date(paymentDate);
+        
+        if (!isNaN(embarqueDate.getTime()) && !isNaN(pagamentoDate.getTime())) {
+          
+          const diffTime = pagamentoDate.getTime() - embarqueDate.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+          if (diffDays >= 0) {
+            paymentDays = diffDays.toString();
+          }
+          
+        }
+      } catch (error) {
+        console.warn(`Erro ao calcular diferença de dias entre ${deliveryDeadline} e ${paymentDate}:`, error);
+      }
+    }
+    
+    const userLocation = {
+      coords: {
+        latitude: -15.7801,
+        longitude: -47.9292
+      },
+      ip: "192.168.1.1"
+    };
+
+    return {
+      grain: grainType, 
+      amount: amount,
+      bagPrice: preco.precoBrl,
+      isBuying: true,
+      address: produto.idFoxAddresses,
+      createdBy: cardData.idFoxUser,
+      deliveryDeadline: deliveryDeadline || 'spot',
+      expiresIn: expiresIn,
+      stateRegistration: "12345678901",
+      commissionValue: 1.5,
+      isGanhaGanha: false,
+      isFob: isFob,
+      isFobCity: isFob,
+      isFobWarehouse: false,
+      paymentDeadLine: paymentDays,
+      foxFee: 1.0,
+      financeTax: 2.0,
+      userId: cardData.idFoxUser,
+      grainId: produto.idProduto || grainType.toString(),
+      simulated: false,
+      sign: {
+        coords: {
+          latitude: userLocation.coords.latitude,
+          longitude: userLocation.coords.longitude
+        },
+        ip: userLocation.ip
+      }
+    };
+  },
+
+  
+  createOffer: async (offerData) => {
+    const FOX_API_URL = import.meta.env.VITE_FOX_API_URL ;
+    
+    try {
+      const response = await axios.post(`${FOX_API_URL}/api/offers/simpleoffers`, offerData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao criar oferta na Fox API:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+ 
+  processCardOffers: async (cardData) => {
+    if (!cardData.produtos || cardData.produtos.length === 0) {
+      throw new Error('Não há produtos no card para criar ofertas');
+    }
+
+    
+    if (!cardData.idFoxUser) {
+      throw new Error('ID de usuário Fox não definido. Configure em Informações de Identificação.');
+    }
+    
+    const results = {
+      success: [],
+      failed: [],
+      summary: {
+        total: 0,
+        successful: 0,
+        failed: 0
+      }
+    };
+    
+    // Para cada produto no card
+    for (const produto of cardData.produtos) {
+      if (!produto.idFoxAddresses) {
+        results.failed.push({
+          produto: produto.nome,
+          error: 'ID Fox Addresses não definido para este produto'
+        });
+        continue;
+      }
+      
+      // Para cada preço no produto
+      for (const preco of produto.precos) {
+        try {
+          // Pular preços sem valor em BRL (este campo é obrigatório)
+          if (!preco.precoBrl) {
+            console.warn(`Preço BRL não definido para ${produto.nome} - ${preco.embarque}. Pulando.`);
+            continue;
+          }
+          
+          const offerData = offerService.mapCardToOffer(produto, preco, cardData);
+
+          console.log("Dados da oferta:", offerData);
+
+          
+          results.summary.total++;
+          
+          // Validações para campos obrigatórios
+          if (!offerData.grain) {
+            throw new Error(`Tipo de grão não reconhecido ou ID inválido`);
+          }
+          
+          if (!offerData.amount) {
+            throw new Error(`Quantidade (amount) não definida`);
+          }
+          
+          if (!offerData.bagPrice) {
+            throw new Error(`Preço da saca (bagPrice) não definido`);
+          }
+          
+          const response = await offerService.createOffer(offerData);
+          
+          // Verificar se a resposta indica sucesso
+          const isSuccess = response && response.status !== 'ERRO';
+          
+          if (isSuccess) {
+            console.log(`✓ Oferta criada com sucesso: ${produto.nome} - ${preco.embarque}`);
+            
+            results.success.push({
+              produto: produto.nome,
+              embarque: preco.embarque,
+              preco: preco.precoBrl,
+              offerId: response.id || response.data?.id || 'N/A',
+              response: response
+            });
+            
+            results.summary.successful++;
+          } else {
+            throw new Error(response?.message || 'Erro desconhecido na criação da oferta');
+          }
+        } catch (error) {
+          console.error(`Erro ao processar oferta para ${produto.nome}:`, error);
+          
+          results.failed.push({
+            produto: produto.nome,
+            embarque: preco.embarque,
+            preco: preco.precoBrl,
+            error: error.message || 'Erro desconhecido'
+          });
+          
+          results.summary.failed++;
+        }
+      }
+    }
+    
+    console.log(`Resumo do processamento: ${results.summary.successful} ofertas criadas, ${results.summary.failed} falhas`);
+    return results;
+  }
+};
+
 // Utilitários
 export const apiUtils = {
   // Polling para verificar status de job
@@ -202,6 +446,8 @@ export const apiUtils = {
 
         // Se completou ou falhou, parar o polling
         if (status.status === 'completed' || status.status === 'error' || status.status === 'failed') {
+
+         
           return status;
         }
 

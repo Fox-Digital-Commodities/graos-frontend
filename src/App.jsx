@@ -13,7 +13,6 @@ function App() {
 
   const handleUploadComplete = (fileInfo) => {
     setUploadedFiles(prev => [...prev, fileInfo]);
-    console.log('Arquivo enviado:', fileInfo);
   };
 
   return (
