@@ -153,7 +153,9 @@ const SuggestionsModal = ({
 
       console.log('Enviando para ChatGPT (modal):', payload);
 
-      const response = await fetch('http://localhost:3001/api/chatgpt/suggest-response', {
+       const baseUrl = import.meta.env.VITE_API_URL;
+
+      const response = await fetch(`${baseUrl}/chatgpt/suggest-response`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

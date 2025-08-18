@@ -1,7 +1,7 @@
 // Utilitário para contornar problemas de CORS com mídia do WhatsApp
 
 // URL base da API
-const API_BASE_URL = 'http://localhost:3001/api';
+const baseURL = import.meta.env.VITE_API_URL;
 
 // Cache para URLs já processadas
 const urlCache = new Map();
@@ -58,7 +58,7 @@ export const getWorkingMediaUrl = async (originalUrl, type = 'audio') => {
  * Testa o proxy do backend
  */
 const testBackendProxy = async (url, type) => {
-  const proxyUrl = `${API_BASE_URL}/media/proxy?url=${encodeURIComponent(url)}&type=${type}`;
+  const proxyUrl = `${baseURL}/media/proxy?url=${encodeURIComponent(url)}&type=${type}`;
   
   return new Promise((resolve, reject) => {
     if (type === 'audio') {
@@ -180,7 +180,7 @@ export const getDownloadUrl = (originalUrl, filename) => {
     ...(filename && { filename })
   });
   
-  return `${API_BASE_URL}/media/download?${params.toString()}`;
+  return `${baseURL}/media/download?${params.toString()}`;
 };
 
 /**

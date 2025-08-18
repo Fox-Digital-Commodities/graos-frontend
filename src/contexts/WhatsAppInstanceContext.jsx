@@ -110,7 +110,7 @@ export const WhatsAppInstanceProvider = ({ children }) => {
 
 // Função para obter URL da API baseada na instância atual
   const getApiUrl = (endpoint = '', includePhoneId = true) => {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const baseUrl = import.meta.env.VITE_API_URL;
     const phoneId = currentInstance.phoneId;
 
     // Sanitizar endpoint (sem barra inicial ou final)

@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graos-frontend-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graos-frontend
+  template:
+    metadata:
+      labels:
+        app: graos-frontend
+    spec:
+      containers:
+      - name: app
+        image: adventureandre/graos-frontend:1.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        env:
+        - name: VITE_API_URL
+          value: https://ia.back.foxgraos.com.br/api
+        - name: VITE_FOX_API_URL
+          value: https://api.foxdc.com.br
+
+# ---
+
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: fox-control-database-deployment
+#   labels:
+#     app: fox-control-database
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: fox-control-database
+#   template:
+#     metadata:
+#       labels:
+#         app: fox-control-database
+#     spec:
+#       containers:
+#         - name: mysql
+#           image: adventureandre/fox-control-database:1.0
+#           imagePullPolicy: Always
+#           ports:
+#             - containerPort: 5432
+#           env:
+#             - name: POSTGRESQL_USERNAME
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: fox-control-secrets
+#                   key: POSTGRESQL_USERNAME
+
+#             - name: POSTGRESQL_PASSWORD
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: fox-control-secrets
+#                   key: POSTGRESQL_PASSWORD
+
+#             - name: POSTGRESQL_DATABASE
+#               valueFrom:
+#                 secretKeyRef: 
+#                   name: fox-control-secrets
+#                   key: POSTGRESQL_DATABASE
+            
+
+
